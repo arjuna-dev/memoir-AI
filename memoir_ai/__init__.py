@@ -29,6 +29,17 @@ from .text_processing import (
     TextChunk,
 )
 
+# Query imports temporarily disabled to avoid circular imports
+# from .query import (
+#     QueryStrategyEngine,
+#     CategoryPath,
+#     QueryClassificationResult,
+#     LLMCallResponse,
+#     QueryExecutionResult,
+#     create_query_strategy_engine,
+#     validate_strategy_params,
+# )
+
 __version__ = "0.1.0"
 __all__ = [
     "MemoirAI",
@@ -49,4 +60,12 @@ __all__ = [
     "CategoryLimits",
     "TextChunker",
     "TextChunk",
+    # Query exports temporarily disabled
+    # "QueryStrategyEngine",
+    # "CategoryPath",
+    # "QueryClassificationResult",
+    # "LLMCallResponse",
+    # "QueryExecutionResult",
+    # "create_query_strategy_engine",
+    # "validate_strategy_params",
 ]

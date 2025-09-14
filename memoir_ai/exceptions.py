@@ -91,3 +91,26 @@ class ValidationError(MemoirAIError):
             full_message += f" (Value: {value})"
 
         super().__init__(full_message)
+
+
+class LLMError(MemoirAIError):
+    """Raised when LLM operations fail."""
+
+    def __init__(
+        self,
+        message: str,
+        model: str = None,
+        error_type: str = None,
+        retry_suggested: bool = True,
+    ):
+        self.model = model
+        self.error_type = error_type
+        self.retry_suggested = retry_suggested
+
+        full_message = f"LLM Error: {message}"
+        if model:
+            full_message += f" (Model: {model})"
+        if error_type:
+            full_message += f" (Type: {error_type})"
+
+        super().__init__(full_message)

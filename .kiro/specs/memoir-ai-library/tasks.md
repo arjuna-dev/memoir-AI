@@ -34,7 +34,7 @@
   - Write comprehensive unit tests for various text inputs and edge cases
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 7.1, 7.2_
 
-- [ ] 3.2 Implement contextual helper generation system
+- [x] 3.2 Implement contextual helper generation system
 
   - Create ContextualHelperGenerator with auto and manual modes
   - Implement automatic helper generation from metadata and first chunks
@@ -44,7 +44,7 @@
   - Write unit tests for both automatic and manual helper generation modes
   - _Requirements: 2B.1, 2B.2, 2B.3, 2B.4, 2B.5, 2B.6, 2B.7, 2B.8, 2B.9, 2B.10_
 
-- [ ] 4.1 Implement Pydantic AI schemas and agents
+- [x] 4.1 Implement Pydantic AI schemas and agents
 
   - Create Pydantic models for all LLM interactions (classification, summarization, final answers)
   - Implement native structured output support with fallback for unsupported models
@@ -53,7 +53,7 @@
   - Write unit tests with mocked LLM responses to validate schema enforcement
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 4.2 Implement batch classification system
+- [x] 4.2 Implement batch classification system
 
   - Create BatchCategoryClassifier for processing multiple chunks in single LLM calls
   - Implement structured batch prompts with chunk IDs and existing category presentation
@@ -63,7 +63,7 @@
   - Write unit tests for batch processing, validation, and retry mechanisms
   - _Requirements: 2A.1, 2A.2, 2A.3, 2A.4, 2A.5, 2A.6, 2A.7, 2A.8, 2A.9, 2A.10_
 
-- [ ] 5.1 Create category hierarchy management
+- [-] 5.1 Create category hierarchy management
 
   - Implement CategoryManager with configurable limits (global and per-level)
   - Add category creation validation with hierarchy depth and parent relationship checks
@@ -72,7 +72,7 @@
   - Write unit tests for category creation, validation, and limit enforcement
   - _Requirements: 2.8, 2.9, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 5.2 Implement iterative classification workflow
+- [-] 5.2 Implement iterative classification workflow
 
   - Create classification workflow that processes chunks through hierarchy levels sequentially
   - Integrate contextual helpers into classification prompts at each level
@@ -81,7 +81,7 @@
   - Write integration tests for complete classification workflow from chunk to storage
   - _Requirements: 2.5, 2.6, 2.7, 2.10, 2.11_
 
-- [ ] 6.1 Implement query classification and traversal strategies
+- [x] 6.1 Implement query classification and traversal strategies
 
   - Create QueryStrategyEngine with four configurable strategies (one shot, wide branch, zoom in, branch out)
   - Implement LLM-based query classification with ranked relevance scoring
@@ -90,7 +90,7 @@
   - Write unit tests for each strategy with various hierarchy configurations
   - _Requirements: 4.1, 8 (all sub-requirements for retrieval strategies)_
 
-- [ ] 6.2 Implement chunk retrieval and result construction
+- [x] 6.2 Implement chunk retrieval and result construction
 
   - Create SQL retrieval system for chunks by category paths with deterministic ordering
   - Implement fallback logic when leaf categories contain no chunks
@@ -99,7 +99,7 @@
   - Write integration tests for complete query workflow from natural language to results
   - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
-- [ ] 7.1 Create token budget estimation and pruning system
+- [x] 7.1 Create token budget estimation and pruning system
 
   - Implement ResultAggregator with token counting using liteLLM for budget estimation
   - Create PruningEngine with ranking-based and deterministic order pruning strategies
@@ -118,7 +118,7 @@
   - Write comprehensive tests for summarization accuracy and budget compliance
   - _Requirements: 9.7, 9.8, 9.9, 9.10_
 
-- [ ] 8.1 Implement core MemoirAI class and public methods
+- [-] 8.1 Implement core MemoirAI class and public methods
 
   - Create MemoirAI class with comprehensive configuration parameter support
   - Implement ingest_text method integrating chunking, classification, and storage with transaction management
