@@ -1,0 +1,41 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "memoir-ai"
+version = "0.1.0"
+description = "LLM-powered hierarchical text storage and retrieval library"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "memoir_ai"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+sqlalchemy = "^2.0.0"
+pydantic-ai = "^0.0.14"
+litellm = "^1.0.0"
+alembic = "^1.13.0"
+asyncio-compat = "^0.1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+mypy = "^1.5.0"
+pre-commit = "^3.4.0"
+coverage = "^7.3.0"
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
