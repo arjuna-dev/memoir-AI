@@ -121,12 +121,32 @@
   - [ ] 8.1 Implement core MemoirAI class and public methods
 
     - Create MemoirAI class with comprehensive configuration parameter support
-    - Implement ingest_text method integrating chunking, classification, and storage
+    - Implement ingest_text method integrating chunking, classification, and storage with transaction management
     - Implement query method with strategy selection and result aggregation
     - Add get_category_tree method for hierarchy inspection
     - Add regenerate_contextual_helper method for helper management
     - Write integration tests for all public API methods
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
+
+  - [ ] 8.2 Implement transaction management and error recovery
+
+    - Add database transaction wrapping for all ingestion operations
+    - Implement transaction rollback logic for database write failures during ingestion
+    - Create comprehensive error logging with sufficient detail for debugging and retry
+    - Add batch-level transaction management treating entire batches as single units
+    - Implement clear error messages with retry strategy suggestions for transaction failures
+    - Write tests for transaction rollback scenarios and error recovery mechanisms
+    - _Requirements: 7B.1, 7B.2, 7B.3, 7B.4, 7B.5, 7B.6, 7B.7_
+
+  - [ ] 8.3 Add comprehensive error handling and edge case management
+
+    - Implement detailed error messages with troubleshooting guidance for all failure modes
+    - Add comprehensive logging system with configurable levels and performance metrics
+    - Create graceful handling for LLM service unavailability and database connection issues
+    - Add input validation and sanitization for all user inputs
+    - Implement edge case handling for short/long text and budget exceeded scenarios
+    - Write tests for error scenarios and recovery mechanisms
+    - _Requirements: 1.5, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9_
 
   - [ ] 8.2 Add comprehensive error handling and logging
 
@@ -137,14 +157,16 @@
     - Write tests for error scenarios and recovery mechanisms
     - _Requirements: 1.5, 7.3, 7.4, 7.5, 7.6_
 
-  - [ ] 9.1 Implement configuration management system
+  - [ ] 9.1 Implement configuration management and validation system
 
-    - Create configuration classes for all system parameters with validation
+    - Create configuration classes for all system parameters with comprehensive validation
+    - Add validation for token budget vs chunk size constraints and hierarchy depth limits
+    - Implement batch size and category limit validation with clear error messages
     - Add environment variable support for database and LLM provider settings
     - Implement configuration file support with schema validation
-    - Add configuration migration utilities for version compatibility
-    - Write tests for configuration loading and validation
-    - _Requirements: 1.1, 1.2, 1.4_
+    - Create ConfigurationError class with specific guidance for fixing invalid settings
+    - Write comprehensive tests for all validation scenarios and error messages
+    - _Requirements: 1.1, 1.2, 1.4, 7A.1, 7A.2, 7A.3, 7A.4, 7A.5, 7A.6, 7A.7_
 
   - [ ] 9.2 Add database backend support and testing
 

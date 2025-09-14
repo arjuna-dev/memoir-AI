@@ -242,6 +242,41 @@ print(repr(result.output))
 4. WHEN LLM services are unavailable THEN the system SHALL provide fallback mechanisms or clear error handling.
 5. WHEN database connections are lost THEN the system SHALL implement retry logic with exponential backoff.
 6. WHEN invalid SQL characters are present THEN the system SHALL properly escape and sanitize all inputs.
+7. WHEN initializing the library THEN the system SHALL validate configuration parameters and provide clear error messages for invalid settings.
+8. WHEN ingesting content THEN the system SHALL wrap the entire ingestion process in database transactions to ensure data consistency.
+9. WHEN database write operations fail during ingestion THEN the system SHALL rollback the entire batch transaction and log the failure for user retry.
+
+---
+
+### Requirement 7A
+
+**User Story:** As a developer, I want the library to validate my configuration settings at initialization, so that I can catch configuration errors early and understand what needs to be fixed.
+
+#### Acceptance Criteria
+
+1. WHEN initializing the library THEN the system SHALL validate that `max_token_budget` is greater than `chunk_min_tokens` plus a reasonable overhead (minimum 100 tokens).
+2. WHEN configuring hierarchy depth THEN the system SHALL validate that the value is between 1 and 100 inclusive.
+3. WHEN configuring batch size THEN the system SHALL validate that the value is greater than 0 and less than or equal to 50.
+4. WHEN configuring token thresholds THEN the system SHALL validate that `chunk_min_tokens` is less than `chunk_max_tokens`.
+5. WHEN configuring category limits THEN the system SHALL validate that all limits are positive integers.
+6. WHEN configuration validation fails THEN the system SHALL raise a clear ConfigurationError with specific guidance on how to fix the invalid setting.
+7. WHEN per-level category limits are specified THEN the system SHALL validate that each level has a corresponding limit configuration.
+
+---
+
+### Requirement 7B
+
+**User Story:** As a developer, I want the library to handle database failures during ingestion gracefully with proper transaction management, so that my data remains consistent even when errors occur.
+
+#### Acceptance Criteria
+
+1. WHEN starting an ingestion operation THEN the system SHALL begin a database transaction before any data modifications.
+2. WHEN chunk classification completes successfully THEN the system SHALL proceed to database writes within the same transaction.
+3. WHEN any database write operation fails during ingestion THEN the system SHALL rollback the entire transaction to maintain data consistency.
+4. WHEN a transaction rollback occurs THEN the system SHALL log the failure with sufficient detail for debugging and user retry.
+5. WHEN ingestion completes successfully THEN the system SHALL commit the transaction and confirm all data is persisted.
+6. WHEN multiple chunks are processed in a batch THEN the system SHALL treat the entire batch as a single transaction unit.
+7. WHEN transaction failures occur THEN the system SHALL provide clear error messages indicating which operation failed and suggest retry strategies.
 
 ---
 
