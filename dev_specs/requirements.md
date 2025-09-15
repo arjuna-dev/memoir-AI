@@ -188,12 +188,14 @@ This library is intended for developers and researchers building applications th
 3. WHEN using Pydantic AI (different from pydantic) with models that support native structured outputs (OpenAI, Grok, Gemini) THEN the system SHALL use the NativeOutput option. If not supported, the system SHALL fall back to standard schema enforcement.
 
 Native Output docs:
-"""
+
 Native Output mode uses a model's native "Structured Outputs" feature (aka "JSON Schema response format"), where the model is forced to only output text matching the provided JSON schema. Note that this is not supported by all models, and sometimes comes with restrictions. For example, Anthropic does not support this at all, and Gemini cannot use tools at the same time as structured output, and attempting to do so will result in an error.
 
 To use this mode, you can wrap the output type(s) in the NativeOutput marker class that also lets you specify a name and description if the name and docstring of the type or function are not sufficient.
 
-python```
+python
+
+```
 from pydantic_ai import Agent, NativeOutput
 
 from tool_output import Fruit, Vehicle
@@ -210,8 +212,7 @@ result = agent.run_sync('What is a Ford Explorer?')
 print(repr(result.output))
 #> Vehicle(name='Ford Explorer', wheels=4)
 
-````
-"""
+```
 
 ---
 
@@ -316,6 +317,7 @@ After traversal completes, the system executes SQL retrieval **once per unique l
 
 1. **Size estimation (always):**
    The system SHALL compute:
+
    - `fixed_prompt_token_count` = tokens(`contextual_helper` if present + wrapper text) using `liteLLM.token_counter`.
    - `chunks_total_token_count` = sum of tokens for all candidate chunks.
    - `fixed_prompt_char_count` = characters(`contextual_helper` if present + wrapper text).
@@ -330,46 +332,25 @@ After traversal completes, the system executes SQL retrieval **once per unique l
 3. **If `prompt_limiting_strategy = SUMMARIZE`:**
    3.1 If `fixed_prompt_token_count + chunks_total_token_count ≤ max_token_budget`, proceed without summarizing.
    3.2 The system SHALL perform **no pruning** and SHALL ignore `use_rankings`.
-   3.3 **Compute compression ratio from tokens, apply to characters:**
-       - `required_compression_ratio = (max_token_budget - fixed_prompt_token_count) / chunks_total_token_count`.
-       - If `required_compression_ratio ≥ 1`, summarization not required; proceed with original chunks.
-       - If `required_compression_ratio ≤ 0`, return an error (budget too small for any content).
-       - For each chunk `i`:
-         - `original_char_count_i = len(chunk_i.text_content)`
-         - `target_char_count_i = max(1, floor(original_char_count_i * required_compression_ratio))`
-   3.4 **Partition into token-safe parts (respect max_token_budget also for these LLM calls):**
-       - Define `summarization_part_token_cap = max_token_budget - summarization_instruction_headroom_tokens`.
-       - Walk the ordered chunk list and accumulate chunks into **Part 1**, **Part 2**, … such that each part’s **input tokens** (its chunks + per-part instruction preface) `≤ summarization_part_token_cap`.
-       - Each part MUST contain at least one chunk; preserve original order across and within parts.
-   3.5 **LLM summarization calls (per part, multiple chunks at once):**
-       - For each Part `k`, the system SHALL send a prompt listing each chunk in this exact structure:
-         ```
-         Chunk <chunk_id> (original_chars=<n>, target_chars=<t>):
-         """
-         <text_content>
-         """
-         ```
-       - Instruction to the LLM:
-         *“For each chunk above, produce a summary of at most its `target_chars` characters. Preserve key facts, entities, dates, numbers, and definitions. Omit repetition and boilerplate. Return only the JSON schema below.”*
-       - The LLM SHALL return structured output validated by **Pydantic AI**:
-         ```json
-         {
-           "summaries": [
-             { "chunk_id": <int>, "summary": "<string>" }
-           ]
-         }
-         ```
-   3.6 **Validation and retries:**
-       - For every summary, verify `len(summary) ≤ target_char_count_i`.
-       - Any over-limit summaries SHALL be retried **only for the offending chunk_ids** with a stricter instruction, up to `summary_max_retries`.
-   3.7 **Combined summaries budget check (characters):**
-       - `combined_summaries_char_count = sum(len(summary_i) for all chunks)`.
-       - Ensure `combined_summaries_char_count ≤ (chunks_total_char_count * required_compression_ratio) * (1 + summary_char_overage_tolerance_percent/100)`.
-       - If this check fails after retries, return an error indicating the character budget could not be met.
-   3.8 **Final answer call and token check:**
-       - Construct the **final answer prompt**: query + `contextual_helper` (if any) + wrapper text + **ordered concatenation** of all per-chunk summaries.
-       - Verify with `liteLLM.token_counter` that final prompt tokens `≤ max_token_budget`.
-       - If it exceeds the budget, return an error indicating that the required compression could not be achieved within limits.
+   3.3 **Compute compression ratio from tokens, apply to characters:** - `required_compression_ratio = (max_token_budget - fixed_prompt_token_count) / chunks_total_token_count`. - If `required_compression_ratio ≥ 1`, summarization not required; proceed with original chunks. - If `required_compression_ratio ≤ 0`, return an error (budget too small for any content). - For each chunk `i`: - `original_char_count_i = len(chunk_i.text_content)` - `target_char_count_i = max(1, floor(original_char_count_i * required_compression_ratio))`
+   3.4 **Partition into token-safe parts (respect max_token_budget also for these LLM calls):** - Define `summarization_part_token_cap = max_token_budget - summarization_instruction_headroom_tokens`. - Walk the ordered chunk list and accumulate chunks into **Part 1**, **Part 2**, … such that each part’s **input tokens** (its chunks + per-part instruction preface) `≤ summarization_part_token_cap`. - Each part MUST contain at least one chunk; preserve original order across and within parts.
+   3.5 **LLM summarization calls (per part, multiple chunks at once):** - For each Part `k`, the system SHALL send a prompt listing each chunk in this exact structure:
+   `      Chunk <chunk_id> (original_chars=<n>, target_chars=<t>):
+      """
+      <text_content>
+      """
+     ` - Instruction to the LLM:
+   _“For each chunk above, produce a summary of at most its `target_chars` characters. Preserve key facts, entities, dates, numbers, and definitions. Omit repetition and boilerplate. Return only the JSON schema below.”_ - The LLM SHALL return structured output validated by **Pydantic AI**:
+   `json
+      {
+        "summaries": [
+          { "chunk_id": <int>, "summary": "<string>" }
+        ]
+      }
+      `
+   3.6 **Validation and retries:** - For every summary, verify `len(summary) ≤ target_char_count_i`. - Any over-limit summaries SHALL be retried **only for the offending chunk_ids** with a stricter instruction, up to `summary_max_retries`.
+   3.7 **Combined summaries budget check (characters):** - `combined_summaries_char_count = sum(len(summary_i) for all chunks)`. - Ensure `combined_summaries_char_count ≤ (chunks_total_char_count * required_compression_ratio) * (1 + summary_char_overage_tolerance_percent/100)`. - If this check fails after retries, return an error indicating the character budget could not be met.
+   3.8 **Final answer call and token check:** - Construct the **final answer prompt**: query + `contextual_helper` (if any) + wrapper text + **ordered concatenation** of all per-chunk summaries. - Verify with `liteLLM.token_counter` that final prompt tokens `≤ max_token_budget`. - If it exceeds the budget, return an error indicating that the required compression could not be achieved within limits.
 
 **Deterministic order**
 
@@ -379,6 +360,7 @@ After traversal completes, the system executes SQL retrieval **once per unique l
 **Final outputs**
 
 - **LLM final response (via Pydantic AI)**
+
   - Fields: `answer` (string)
   - Note: the LLM returns **only** the answer.
 
@@ -410,6 +392,6 @@ After traversal completes, the system executes SQL retrieval **once per unique l
 11. Deterministic mode SHALL be supported by fixing temperature to zero and recording provider parameters.
 12. The system SHALL support the four traversal strategies (Requirement 8) and validate LLM outputs with Pydantic AI where applicable.
 
+```
 
-
-````
+```
