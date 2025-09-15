@@ -16,11 +16,18 @@ from .database.engine import DatabaseManager
 from .database.models import Category, Chunk, ContextualHelper
 from .text_processing.chunker import TextChunker, TextChunk
 from .classification.category_manager import CategoryManager
-from .classification.iterative_classifier import IterativeClassifier
+
+# Import the implemented iterative classification workflow.
+try:  # pragma: no cover - defensive import guard
+    from .classification.iterative_classifier import (
+        IterativeClassificationWorkflow,
+    )
+except Exception:  # Fallback if something goes wrong unexpectedly
+    IterativeClassificationWorkflow = None  # type: ignore
 from .query.query_processor import QueryProcessor, process_natural_language_query
 from .query.query_strategy_engine import QueryStrategy
 from .aggregation.result_aggregator import ResultAggregator, PromptLimitingStrategy
-from .config import DatabaseConfig
+from .config import MemoirAIConfig
 from .exceptions import (
     ConfigurationError,
     ValidationError,
@@ -138,8 +145,19 @@ class MemoirAI:
         # Validate configuration
         self._validate_configuration()
 
-        # Initialize database
-        self.db_config = DatabaseConfig(database_url=database_url)
+        # Initialize database configuration (uses comprehensive validation)
+        self.db_config = MemoirAIConfig(
+            database_url=database_url,
+            llm_provider=self.llm_provider,
+            model_name=self.model_name,
+            hierarchy_depth=self.hierarchy_depth,
+            max_categories_per_level=self.max_categories_per_level,
+            chunk_min_tokens=self.chunk_min_tokens,
+            chunk_max_tokens=self.chunk_max_tokens,
+            batch_size=self.batch_size,
+            auto_source_identification=self.auto_source_identification,
+            max_token_budget=self.max_token_budget,
+        )
         self.db_manager = DatabaseManager(self.db_config)
         self.db_manager.initialize()
 
@@ -225,12 +243,16 @@ class MemoirAI:
                     category_limits=category_limits,
                 )
 
-                # Initialize iterative classifier
-                self.iterative_classifier = IterativeClassifier(
-                    category_manager=self.category_manager,
-                    model_name=self.model_name,
-                    batch_size=self.batch_size,
-                )
+                # Initialize iterative classification workflow (requirement 5.2)
+                if IterativeClassificationWorkflow:
+                    self.iterative_classifier = IterativeClassificationWorkflow(
+                        session,
+                        self.category_manager,
+                        model_name=self.model_name,
+                        batch_size=self.batch_size,
+                    )
+                else:  # pragma: no cover - unexpected
+                    self.iterative_classifier = None
 
                 # Initialize query processor
                 self.query_processor = QueryProcessor(
@@ -313,12 +335,17 @@ class MemoirAI:
                     )
 
                     # Step 2: Classify chunks
-                    classification_results = (
-                        await self.iterative_classifier.classify_chunks_batch(
-                            chunks=chunks,
-                            contextual_helper=contextual_helper
-                            or f"Content from source: {source_id}",
+                    if not self.iterative_classifier:
+                        raise ClassificationError(
+                            "Iterative classification workflow is not initialized",
+                            retry_count=0,
                         )
+
+                    classification_results = await self.iterative_classifier.classify_chunks(
+                        chunks=chunks,
+                        contextual_helper=contextual_helper
+                        or f"Content from source: {source_id}",
+                        source_id=source_id,
                     )
 
                     logger.info(f"Classified {len(classification_results)} chunks")
@@ -329,46 +356,35 @@ class MemoirAI:
                     chunk_details = []
                     total_tokens = 0
 
-                    for i, (chunk, result) in enumerate(
-                        zip(chunks, classification_results)
-                    ):
-                        if result.success and result.category_path:
-                            # Get or create the leaf category
-                            leaf_category = (
-                                result.category_path[-1]
-                                if result.category_path
-                                else None
+                    for i, result in enumerate(classification_results):
+                        chunk = result.chunk
+                        if result.success and result.category_path and result.final_category:
+                            leaf_category = result.final_category
+
+                            # Create chunk record mirroring storage in workflow (idempotent within txn)
+                            chunk_record = Chunk(
+                                content=chunk.content,
+                                token_count=chunk.token_count,
+                                source_id=source_id,
+                                category_id=leaf_category.id,
+                                created_at=datetime.now(),
                             )
+                            session.add(chunk_record)
+                            chunks_stored += 1
+                            total_tokens += chunk.token_count
 
-                            if leaf_category:
-                                # Create chunk record
-                                chunk_record = Chunk(
-                                    content=chunk.text,
-                                    token_count=chunk.token_count,
-                                    source_id=source_id,
-                                    category_id=leaf_category.id,
-                                    created_at=datetime.now(),
-                                )
-
-                                session.add(chunk_record)
-                                chunks_stored += 1
-                                total_tokens += chunk.token_count
-
-                                # Track chunk details
-                                chunk_details.append(
-                                    {
-                                        "chunk_index": i,
-                                        "token_count": chunk.token_count,
-                                        "category_path": " > ".join(
-                                            cat.name for cat in result.category_path
-                                        ),
-                                        "category_id": leaf_category.id,
-                                    }
-                                )
+                            chunk_details.append(
+                                {
+                                    "chunk_index": i,
+                                    "token_count": chunk.token_count,
+                                    "category_path": " > ".join(
+                                        cat.name for cat in result.category_path
+                                    ),
+                                    "category_id": leaf_category.id,
+                                }
+                            )
                         else:
-                            logger.warning(
-                                f"Failed to classify chunk {i}: {result.error}"
-                            )
+                            logger.warning(f"Failed to classify chunk {i}: {result.error}")
 
                     # Store contextual helper if provided
                     if contextual_helper:
