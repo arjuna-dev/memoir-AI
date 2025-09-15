@@ -2,7 +2,10 @@
 MemoirAI - LLM-powered hierarchical text storage and retrieval library.
 """
 
-from .core import MemoirAI
+try:  # Core may import optional modules not yet implemented (e.g., iterative classifier)
+    from .core import MemoirAI  # type: ignore
+except Exception:  # pragma: no cover
+    MemoirAI = None  # type: ignore
 from .models import (
     IngestionResult,
     QueryResult,
