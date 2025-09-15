@@ -490,6 +490,7 @@ Provide only the category name."""
         try:
             # Verify this is a leaf category
             if not self.category_manager.is_leaf_category(final_category):
+                # Let ValidationError propagate directly so tests expecting it can catch it
                 raise ValidationError(
                     f"Can only link chunks to leaf categories. "
                     f"Category {final_category.id} is at level {final_category.level}, "
@@ -516,6 +517,9 @@ Provide only the category name."""
                 f"Stored chunk {chunk_record.id} in category {final_category.id}"
             )
 
+        except ValidationError:
+            # Propagate validation errors unchanged
+            raise
         except Exception as e:
             logger.error(f"Failed to store chunk classification: {e}")
             self.db_session.rollback()
