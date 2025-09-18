@@ -341,11 +341,13 @@ class MemoirAI:
                             retry_count=0,
                         )
 
-                    classification_results = await self.iterative_classifier.classify_chunks(
-                        chunks=chunks,
-                        contextual_helper=contextual_helper
-                        or f"Content from source: {source_id}",
-                        source_id=source_id,
+                    classification_results = (
+                        await self.iterative_classifier.classify_chunks(
+                            chunks=chunks,
+                            contextual_helper=contextual_helper
+                            or f"Content from source: {source_id}",
+                            source_id=source_id,
+                        )
                     )
 
                     logger.info(f"Classified {len(classification_results)} chunks")
@@ -358,7 +360,11 @@ class MemoirAI:
 
                     for i, result in enumerate(classification_results):
                         chunk = result.chunk
-                        if result.success and result.category_path and result.final_category:
+                        if (
+                            result.success
+                            and result.category_path
+                            and result.final_category
+                        ):
                             leaf_category = result.final_category
 
                             # Create chunk record mirroring storage in workflow (idempotent within txn)
@@ -384,7 +390,9 @@ class MemoirAI:
                                 }
                             )
                         else:
-                            logger.warning(f"Failed to classify chunk {i}: {result.error}")
+                            logger.warning(
+                                f"Failed to classify chunk {i}: {result.error}"
+                            )
 
                     # Store contextual helper if provided
                     if contextual_helper:

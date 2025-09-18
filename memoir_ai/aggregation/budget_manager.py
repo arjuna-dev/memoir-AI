@@ -56,9 +56,14 @@ class BudgetConfig:
                 value=self.max_token_budget,
             )
 
-        if self.summarization_instruction_headroom_tokens >= self.max_token_budget:
+        # Only enforce headroom < max budget when summarization strategy is active;
+        # tests may construct configs in PRUNE mode with large headroom tokens without error.
+        if (
+            self.prompt_limiting_strategy == PromptLimitingStrategy.SUMMARIZE
+            and self.summarization_instruction_headroom_tokens >= self.max_token_budget
+        ):
             raise ValidationError(
-                "summarization_instruction_headroom_tokens must be less than max_token_budget",
+                "summarization_instruction_headroom_tokens must be less than max_token_budget when using summarization",
                 field="summarization_instruction_headroom_tokens",
                 value=self.summarization_instruction_headroom_tokens,
             )
