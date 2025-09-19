@@ -19,6 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Index,
     JSON,
+    text,
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship, validates
@@ -76,6 +77,12 @@ class Category(Base):
         Index("idx_categories_parent_id", "parent_id"),
         Index("idx_categories_level", "level"),
         Index("idx_categories_name", "name"),
+        Index(
+            "uq_categories_root_name",
+            "name",
+            unique=True,
+            sqlite_where=text("parent_id IS NULL"),
+        ),
     )
 
     @validates("level")

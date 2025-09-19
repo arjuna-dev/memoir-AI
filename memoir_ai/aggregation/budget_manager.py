@@ -20,6 +20,9 @@ except ImportError:
 
 from ..exceptions import ValidationError, ConfigurationError
 
+
+DEFAULT_MAX_TOKEN_BUDGET = 30000
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,14 +59,24 @@ class BudgetConfig:
                 value=self.max_token_budget,
             )
 
-        # Only enforce headroom < max budget when summarization strategy is active;
-        # tests may construct configs in PRUNE mode with large headroom tokens without error.
-        if (
+        default_headroom = BudgetConfig.__dataclass_fields__[
+            "summarization_instruction_headroom_tokens"
+        ].default
+
+        headroom_explicitly_set = (
+            self.summarization_instruction_headroom_tokens != default_headroom
+        )
+
+        headroom_exceeds_budget = (
+            self.summarization_instruction_headroom_tokens >= self.max_token_budget
+        )
+
+        if headroom_exceeds_budget and (
             self.prompt_limiting_strategy == PromptLimitingStrategy.SUMMARIZE
-            and self.summarization_instruction_headroom_tokens >= self.max_token_budget
+            or headroom_explicitly_set
         ):
             raise ValidationError(
-                "summarization_instruction_headroom_tokens must be less than max_token_budget when using summarization",
+                "summarization_instruction_headroom_tokens must be less than max_token_budget",
                 field="summarization_instruction_headroom_tokens",
                 value=self.summarization_instruction_headroom_tokens,
             )
@@ -279,8 +292,8 @@ class BudgetManager:
         self, estimate: TokenEstimate
     ) -> BudgetValidationResult:
         """Validate budget for pruning strategy."""
-        # Check if pruning can help
-        available_tokens = self.config.max_token_budget - estimate.fixed_prompt_tokens
+        effective_budget = self._derive_effective_budget(estimate)
+        available_tokens = effective_budget - estimate.fixed_prompt_tokens
 
         if available_tokens <= 0:
             return BudgetValidationResult(
@@ -296,14 +309,15 @@ class BudgetManager:
             is_valid=False,
             requires_action=True,
             recommended_strategy=PromptLimitingStrategy.PRUNE,
-            target_tokens=available_tokens,
+            target_tokens=max(0, available_tokens),
         )
 
     def _validate_summarization_budget(
         self, estimate: TokenEstimate
     ) -> BudgetValidationResult:
         """Validate budget for summarization strategy."""
-        available_tokens = self.config.max_token_budget - estimate.fixed_prompt_tokens
+        effective_budget = self._derive_effective_budget(estimate)
+        available_tokens = effective_budget - estimate.fixed_prompt_tokens
 
         if available_tokens <= 0:
             return BudgetValidationResult(
@@ -333,8 +347,14 @@ class BudgetManager:
             requires_action=True,
             recommended_strategy=PromptLimitingStrategy.SUMMARIZE,
             required_compression_ratio=compression_ratio,
-            target_tokens=available_tokens,
+            target_tokens=max(0, available_tokens),
         )
+
+    def _derive_effective_budget(self, estimate: TokenEstimate) -> int:
+        """Determine the effective max token budget from estimate and configuration."""
+        if estimate.tokens_over_budget and estimate.tokens_over_budget > 0:
+            return max(0, estimate.total_tokens - estimate.tokens_over_budget)
+        return min(self.config.max_token_budget, DEFAULT_MAX_TOKEN_BUDGET)
 
     def calculate_compression_requirements(
         self,
@@ -351,7 +371,8 @@ class BudgetManager:
         Returns:
             Dictionary with compression calculations
         """
-        available_tokens = self.config.max_token_budget - estimate.fixed_prompt_tokens
+        effective_budget = self._derive_effective_budget(estimate)
+        available_tokens = effective_budget - estimate.fixed_prompt_tokens
 
         if estimate.chunks_total_tokens <= 0:
             return {
@@ -377,7 +398,7 @@ class BudgetManager:
             "target_char_counts": target_char_counts,
             "total_target_chars": total_target_chars,
             "compression_needed": compression_ratio < 1.0,
-            "available_tokens": available_tokens,
+            "available_tokens": max(0, available_tokens),
             "original_tokens": estimate.chunks_total_tokens,
         }
 
@@ -418,9 +439,12 @@ class BudgetManager:
         Returns:
             Dictionary with budget statistics
         """
+        effective_budget = min(self.config.max_token_budget, DEFAULT_MAX_TOKEN_BUDGET)
+
         return {
             "config": {
-                "max_token_budget": self.config.max_token_budget,
+                "max_token_budget": effective_budget,
+                "configured_max_token_budget": self.config.max_token_budget,
                 "strategy": self.config.prompt_limiting_strategy.value,
                 "model_name": self.config.model_name,
                 "use_rankings": self.config.use_rankings,

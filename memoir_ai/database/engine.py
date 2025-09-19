@@ -39,23 +39,23 @@ class DatabaseManager:
 
     def _initialize_engine(self):
         """Initialize SQLAlchemy engine with appropriate settings."""
+        self.initialization_error: Optional[str] = None
+
         try:
-            # Engine configuration based on database type
             engine_kwargs = self._get_engine_kwargs()
-
             self.engine = create_engine(self.config.database_url, **engine_kwargs)
-
-            # Create session factory
             self.SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=self.engine
             )
-
-            # Test connection
             self._test_connection()
-
-        except Exception as e:
+        except ModuleNotFoundError as exc:
+            # Optional database driver missing – record for later error reporting.
+            self.initialization_error = str(exc)
+            self.engine = None
+            self.SessionLocal = None
+        except Exception as exc:
             raise DatabaseError(
-                f"Failed to initialize database engine: {str(e)}",
+                f"Failed to initialize database engine: {str(exc)}",
                 operation="initialize_engine",
             )
 
@@ -126,6 +126,11 @@ class DatabaseManager:
             use_migrations: If True, use migration system instead of direct creation
         """
         try:
+            if not self.engine:
+                raise DatabaseError(
+                    "Database engine is not available; missing driver?",
+                    operation="create_tables",
+                )
             if use_migrations:
                 # Import here to avoid circular imports
                 from .migration_manager import MigrationManager
@@ -142,6 +147,11 @@ class DatabaseManager:
     def drop_tables(self):
         """Drop all database tables (for testing/cleanup)."""
         try:
+            if not self.engine:
+                raise DatabaseError(
+                    "Database engine is not available; missing driver?",
+                    operation="drop_tables",
+                )
             Base.metadata.drop_all(bind=self.engine)
         except Exception as e:
             raise DatabaseError(
@@ -159,7 +169,12 @@ class DatabaseManager:
                 pass
         """
         if not self.SessionLocal:
-            raise DatabaseError("Database not initialized", operation="get_session")
+            detail = (
+                f"Database not initialized: {self.initialization_error}"
+                if self.initialization_error
+                else "Database not initialized"
+            )
+            raise DatabaseError(detail, operation="get_session")
 
         session = self.SessionLocal()
         try:

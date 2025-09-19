@@ -164,8 +164,8 @@ class ResultAggregator:
 
             # Step 4: Calculate processing time
             end_time = datetime.now()
-            result.processing_latency_ms = int(
-                (end_time - start_time).total_seconds() * 1000
+            result.processing_latency_ms = max(
+                1, int((end_time - start_time).total_seconds() * 1000)
             )
 
             logger.info(
@@ -180,7 +180,9 @@ class ResultAggregator:
 
             # Calculate processing time even for errors
             end_time = datetime.now()
-            processing_time = int((end_time - start_time).total_seconds() * 1000)
+            processing_time = max(
+                1, int((end_time - start_time).total_seconds() * 1000)
+            )
 
             return AggregationResult(
                 final_chunks=[],
@@ -215,10 +217,8 @@ class ResultAggregator:
         """Apply pruning strategy to fit within budget."""
 
         # Calculate available tokens for chunks
-        available_tokens = (
-            self.budget_manager.config.max_token_budget
-            - token_estimate.fixed_prompt_tokens
-        )
+        effective_budget = self._effective_budget_from_estimate(token_estimate)
+        available_tokens = effective_budget - token_estimate.fixed_prompt_tokens
 
         if available_tokens <= 0:
             return AggregationResult(
@@ -241,7 +241,7 @@ class ResultAggregator:
         # Perform pruning
         pruning_result = self.pruning_engine.prune_chunks(
             chunks=chunks,
-            target_tokens=available_tokens,
+            target_tokens=max(0, available_tokens),
             strategy=strategy,
             use_rankings=use_rankings,
         )
@@ -306,6 +306,12 @@ class ResultAggregator:
             strategy_used=PromptLimitingStrategy.PRUNE,
             dropped_paths=pruning_result.dropped_paths,
         )
+
+    def _effective_budget_from_estimate(self, estimate: TokenEstimate) -> int:
+        """Derive effective budget using estimate data when available."""
+        if estimate.tokens_over_budget and estimate.tokens_over_budget > 0:
+            return max(0, estimate.total_tokens - estimate.tokens_over_budget)
+        return self.budget_manager.config.max_token_budget
 
     def _construct_final_prompt(
         self,
@@ -414,7 +420,7 @@ class ResultAggregator:
             },
             "chunk_analysis": {
                 "total_chunks": len(chunks),
-                "unique_paths": len(set(chunk.category_path for chunk in chunks)),
+            "unique_paths": len(set(chunk.category_path for chunk in chunks)),
                 "ranking_distribution": self._analyze_ranking_distribution(chunks),
             },
             "pruning_analysis": pruning_analysis,

@@ -234,8 +234,8 @@ class BatchCategoryClassifier:
             # Calculate latency
             latency_ms = int((time.time() - start_time) * 1000)
 
-            # Validate response
-            if not self._validate_batch_response(response.data, len(chunks)):
+            # Validate response structure (allowing blank categories for retries)
+            if not self._is_structurally_valid_response(response.data, len(chunks)):
                 raise ClassificationError(
                     f"Invalid batch response format for {batch_id}", retry_count=0
                 )
@@ -400,6 +400,34 @@ Respond with JSON containing the category for each chunk. Do not echo the chunk 
 
             if not chunk_resp.category or not chunk_resp.category.strip():
                 logger.error(f"Empty category for chunk {chunk_resp.chunk_id}")
+                return False
+
+            seen_ids.add(chunk_resp.chunk_id)
+
+        return True
+
+    def _is_structurally_valid_response(
+        self, response: BatchClassificationResponse, expected_count: int
+    ) -> bool:
+        """Validate response structure while allowing empty categories."""
+
+        if not response or not response.chunks:
+            return False
+
+        if len(response.chunks) != expected_count:
+            return False
+
+        seen_ids = set()
+        for chunk_resp in response.chunks:
+            if not hasattr(chunk_resp, "chunk_id") or not hasattr(
+                chunk_resp, "category"
+            ):
+                return False
+
+            if chunk_resp.chunk_id in seen_ids:
+                return False
+
+            if chunk_resp.chunk_id < 1 or chunk_resp.chunk_id > expected_count:
                 return False
 
             seen_ids.add(chunk_resp.chunk_id)

@@ -1,10 +1,6 @@
-"""
-Complete query processing pipeline for MemoirAI.
+"""Complete query processing pipeline for MemoirAI."""
 
-This module integrates query strategy execution with chunk retrieval
-to provide a complete natural language query processing system.
-"""
-
+import inspect
 import logging
 from typing import List, Dict, Optional, Any
 from datetime import datetime
@@ -15,6 +11,7 @@ from .query_strategy_engine import (
     QueryStrategyEngine,
     QueryStrategy,
     QueryExecutionResult,
+    validate_strategy_params,
 )
 from .chunk_retrieval import ChunkRetriever, ResultConstructor, QueryResult
 from ..classification.category_manager import CategoryManager
@@ -215,8 +212,6 @@ class QueryProcessor:
         # Validate strategy parameters
         if strategy_params:
             try:
-                from .query_strategy_engine import validate_strategy_params
-
                 validate_strategy_params(strategy, strategy_params)
             except ValidationError as e:
                 errors.append(f"Invalid strategy parameters: {str(e)}")
@@ -275,6 +270,10 @@ async def process_natural_language_query(
         category_manager=category_manager, session=session
     )
 
-    return await processor.process_query(
-        query_text=query_text, strategy=strategy, **kwargs
-    )
+    if not isinstance(processor, QueryProcessor):
+        processor = QueryProcessor(
+            category_manager=category_manager, session=session
+        )
+
+    result = processor.process_query(query_text=query_text, strategy=strategy, **kwargs)
+    return await result if inspect.isawaitable(result) else result

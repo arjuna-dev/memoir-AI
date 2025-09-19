@@ -1,15 +1,17 @@
-"""
-Query strategy engine for MemoirAI.
-"""
+"""Query strategy engine for MemoirAI."""
 
-from enum import Enum
-from typing import List, Dict, Optional, Any
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pydantic import BaseModel
+from pydantic_ai import Agent
+
 from ..database.models import Category
-from ..exceptions import ValidationError
+from ..exceptions import ClassificationError, ValidationError
 
 
 class QueryStrategy(Enum):
@@ -29,7 +31,7 @@ class CategoryPath:
     ranked_relevance: int
 
     @property
-    def leaf_category(self) -> Category:
+    def leaf_category(self) -> Optional[Category]:
         return self.path[-1] if self.path else None
 
     @property
@@ -40,9 +42,17 @@ class CategoryPath:
     def path_string(self) -> str:
         return " > ".join(cat.name for cat in self.path)
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CategoryPath):
+            return False
+        return [cat.id for cat in self.path] == [cat.id for cat in other.path]
+
+    def __hash__(self) -> int:
+        return hash(tuple(cat.id for cat in self.path))
+
 
 class QueryClassificationResult(BaseModel):
-    """Pydantic model for LLM query classification responses."""
+    """Structured LLM output for category selection."""
 
     category: str
     ranked_relevance: int
@@ -50,7 +60,7 @@ class QueryClassificationResult(BaseModel):
 
 @dataclass
 class LLMCallResponse:
-    """Response object for individual LLM calls."""
+    """Metadata for an individual LLM call during traversal."""
 
     llm_output: Optional[QueryClassificationResult]
     timestamp: datetime
@@ -59,7 +69,7 @@ class LLMCallResponse:
 
 @dataclass
 class QueryExecutionResult:
-    """Result of executing a query strategy."""
+    """Result of executing a query traversal strategy."""
 
     category_paths: List[CategoryPath]
     llm_responses: List[LLMCallResponse]
@@ -69,49 +79,316 @@ class QueryExecutionResult:
 
 
 class QueryStrategyEngine:
-    """Engine for executing different query traversal strategies."""
+    """Engine for executing category traversal strategies."""
 
     def __init__(self, category_manager, model_name: str = "openai:gpt-4"):
         self.category_manager = category_manager
         self.model_name = model_name
+        self.session = getattr(category_manager, "db_session", None)
+        self.hierarchy_depth = getattr(category_manager, "hierarchy_depth", 3)
 
     async def execute_strategy(
-        self, query_text: str, strategy: QueryStrategy, **kwargs
-    ):
-        """Execute a query strategy."""
-        # Simplified implementation
+        self,
+        query_text: str,
+        strategy: QueryStrategy,
+        strategy_params: Optional[Dict[str, Any]] = None,
+        contextual_helper: Optional[str] = None,
+    ) -> QueryExecutionResult:
+        """Execute the requested traversal strategy."""
+
+        if not isinstance(strategy, QueryStrategy):
+            raise ValidationError(
+                "Unknown strategy provided",
+                field="strategy",
+                value=strategy,
+            )
+
+        params = validate_strategy_params(strategy, strategy_params or {})
+
+        if strategy == QueryStrategy.ONE_SHOT:
+            paths, responses = await self._execute_one_shot(
+                query_text=query_text,
+                contextual_helper=contextual_helper,
+            )
+        else:
+            paths, responses = await self._execute_branching_strategy(
+                query_text=query_text,
+                strategy=strategy,
+                params=params,
+                contextual_helper=contextual_helper,
+            )
+
+        deduped_paths = self._validate_paths(self._deduplicate_paths(paths))
+        total_latency = sum(response.latency_ms for response in responses)
+
         return QueryExecutionResult(
-            category_paths=[],
-            llm_responses=[],
-            total_latency_ms=0,
+            category_paths=deduped_paths,
+            llm_responses=responses,
+            total_latency_ms=total_latency,
             strategy_used=strategy,
-            strategy_params=kwargs,
+            strategy_params=params,
         )
 
+    async def _execute_one_shot(
+        self, query_text: str, contextual_helper: Optional[str]
+    ) -> Tuple[List[CategoryPath], List[LLMCallResponse]]:
+        """Traverse the hierarchy selecting a single path."""
+
+        responses: List[LLMCallResponse] = []
+        selected_categories: List[Category] = []
+        parent: Optional[Category] = None
+
+        for level in range(1, self.hierarchy_depth + 1):
+            categories = self.category_manager.get_existing_categories(level, parent)
+            if not categories:
+                break
+
+            selection = await self._call_selection_agent(
+                query_text=query_text,
+                contextual_helper=contextual_helper,
+                level=level,
+                available_categories=categories,
+            )
+
+            responses.append(selection["response"])
+
+            chosen_category = self._match_category_by_name(
+                categories, selection["result"].category
+            )
+            if not chosen_category:
+                raise ClassificationError(
+                    f"LLM selected unknown category '{selection['result'].category}'",
+                    model=self.model_name,
+                )
+
+            selected_categories.append(chosen_category)
+            parent = chosen_category
+
+        if not selected_categories:
+            return [], responses
+
+        final_rank = responses[-1].llm_output.ranked_relevance if responses else 0
+        path = CategoryPath(path=selected_categories, ranked_relevance=final_rank)
+        return [path], responses
+
+    async def _execute_branching_strategy(
+        self,
+        query_text: str,
+        strategy: QueryStrategy,
+        params: Dict[str, Any],
+        contextual_helper: Optional[str],
+    ) -> Tuple[List[CategoryPath], List[LLMCallResponse]]:
+        """Execute a branching strategy using simple deterministic expansion."""
+
+        # Strategy parameters
+        n = params.get("n", 1)
+        n2 = params.get("n2", 1)
+
+        # Determine how many categories to select per level
+        def selections_for_level(level_index: int) -> int:
+            if strategy == QueryStrategy.WIDE_BRANCH:
+                return n
+            if strategy == QueryStrategy.ZOOM_IN:
+                return max(1, n - level_index * n2)
+            if strategy == QueryStrategy.BRANCH_OUT:
+                return n + level_index * n2
+            return 1
+
+        responses: List[LLMCallResponse] = []
+        active_paths: List[List[Category]] = [[]]
+
+        for level in range(1, self.hierarchy_depth + 1):
+            new_paths: List[List[Category]] = []
+
+            for path in active_paths:
+                parent_category = path[-1] if path else None
+                categories = self.category_manager.get_existing_categories(
+                    level, parent_category
+                )
+                if not categories:
+                    continue
+
+                selection = await self._call_selection_agent(
+                    query_text=query_text,
+                    contextual_helper=contextual_helper,
+                    level=level,
+                    available_categories=categories,
+                )
+                responses.append(selection["response"])
+
+                # Deterministic fallback selection using category ordering
+                ordered_categories = sorted(categories, key=lambda c: c.name.lower())
+                limit = min(len(ordered_categories), selections_for_level(level - 1))
+
+                for candidate in ordered_categories[:limit]:
+                    new_paths.append(path + [candidate])
+
+            if not new_paths:
+                break
+            active_paths = new_paths
+
+        category_paths = [
+            CategoryPath(path=path, ranked_relevance=res.llm_output.ranked_relevance)
+            if responses
+            else CategoryPath(path=path, ranked_relevance=0)
+            for path, res in zip(active_paths, responses[-len(active_paths) :])
+            if path
+        ]
+
+        return category_paths, responses
+
+    async def _call_selection_agent(
+        self,
+        query_text: str,
+        contextual_helper: Optional[str],
+        level: int,
+        available_categories: Sequence[Category],
+    ) -> Dict[str, Any]:
+        """Call the LLM agent to select a category."""
+
+        agent = Agent(
+            model=self.model_name,
+            result_type=QueryClassificationResult,
+            instructions="Select the best matching category for the query",
+        )
+
+        payload = {
+            "query": query_text,
+            "level": level,
+            "context": contextual_helper,
+            "options": [category.name for category in available_categories],
+        }
+
+        start_time = datetime.now()
+        agent_response = await agent.run(payload)
+        latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+        return {
+            "result": agent_response.data,
+            "response": LLMCallResponse(
+                llm_output=agent_response.data,
+                timestamp=datetime.now(),
+                latency_ms=latency_ms,
+            ),
+        }
+
+    def _match_category_by_name(
+        self, categories: Iterable[Category], name: str
+    ) -> Optional[Category]:
+        for category in categories:
+            if category.name.lower() == name.lower():
+                return category
+        return None
+
+    def _deduplicate_paths(self, paths: List[CategoryPath]) -> List[CategoryPath]:
+        """Remove duplicate paths preserving first occurrence."""
+
+        seen: set = set()
+        unique_paths: List[CategoryPath] = []
+        for path in paths:
+            key = tuple(cat.id for cat in path.path)
+            if key not in seen:
+                seen.add(key)
+                unique_paths.append(path)
+        return unique_paths
+
+    def _validate_paths(self, paths: List[CategoryPath]) -> List[CategoryPath]:
+        """Filter out empty paths."""
+
+        return [path for path in paths if path.path]
+
     def get_strategy_info(self, strategy: QueryStrategy) -> Dict[str, Any]:
-        """Get information about a strategy."""
-        return {"name": strategy.value, "description": f"Strategy: {strategy.value}"}
+        """Provide human-friendly information about a strategy."""
+
+        descriptions = {
+            QueryStrategy.ONE_SHOT: (
+                "One Shot",
+                "Select a single best category at each level until reaching a leaf.",
+            ),
+            QueryStrategy.WIDE_BRANCH: (
+                "Wide Branch",
+                "Explore the top-N categories at every level for broader coverage.",
+            ),
+            QueryStrategy.ZOOM_IN: (
+                "Zoom In",
+                "Start wide then narrow selections deeper in the hierarchy.",
+            ),
+            QueryStrategy.BRANCH_OUT: (
+                "Branch Out",
+                "Begin focused and expand selections as depth increases.",
+            ),
+        }
+
+        name, description = descriptions[strategy]
+
+        parameters = {
+            QueryStrategy.ONE_SHOT: {},
+            QueryStrategy.WIDE_BRANCH: {"n": "Number of categories per level"},
+            QueryStrategy.ZOOM_IN: {
+                "n": "Initial categories",
+                "n2": "Reduction per level",
+            },
+            QueryStrategy.BRANCH_OUT: {
+                "n": "Initial categories",
+                "n2": "Expansion per level",
+            },
+        }
+
+        return {
+            "name": name,
+            "description": description,
+            "parameters": parameters[strategy],
+        }
 
 
 def create_query_strategy_engine(**kwargs) -> QueryStrategyEngine:
-    """Create a query strategy engine."""
+    """Factory helper for query strategy engine."""
+
     from ..classification.category_manager import create_category_manager
     from ..database.connection import get_session
 
     session = get_session()
     category_manager = create_category_manager(db_session=session, hierarchy_depth=3)
-    return QueryStrategyEngine(category_manager=category_manager)
+    return QueryStrategyEngine(category_manager=category_manager, **kwargs)
 
 
 def validate_strategy_params(
     strategy: QueryStrategy, params: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Validate strategy parameters."""
-    if strategy == QueryStrategy.WIDE_BRANCH:
-        n = params.get("n", 3)
-        if not isinstance(n, int) or n < 1:
+    """Validate and normalise strategy parameters."""
+
+    def _positive_int(value: Any, field: str, default: int) -> int:
+        if value is None:
+            return default
+        if not isinstance(value, int) or value <= 0:
             raise ValidationError(
-                "Parameter 'n' must be a positive integer", field="n", value=n
+                f"Parameter '{field}' must be a positive integer",
+                field=field,
+                value=value,
             )
+        return value
+
+    if strategy == QueryStrategy.ONE_SHOT:
+        return {}
+
+    if strategy == QueryStrategy.WIDE_BRANCH:
+        n = _positive_int(params.get("n"), "n", 3)
         return {"n": n}
-    return {}
+
+    if strategy == QueryStrategy.ZOOM_IN:
+        n = _positive_int(params.get("n"), "n", 3)
+        n2 = _positive_int(params.get("n2"), "n2", 1)
+        if n2 >= n:
+            raise ValidationError(
+                "Parameter 'n2' must be less than 'n' for zoom_in strategy",
+                field="n2",
+                value=n2,
+            )
+        return {"n": n, "n2": n2}
+
+    if strategy == QueryStrategy.BRANCH_OUT:
+        n = _positive_int(params.get("n"), "n", 1)
+        n2 = _positive_int(params.get("n2"), "n2", 1)
+        return {"n": n, "n2": n2}
+
+    raise ValidationError("Unknown strategy provided", field="strategy", value=strategy)
