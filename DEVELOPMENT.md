@@ -15,7 +15,7 @@ memoir-ai/
 │   └── test_config.py      # Configuration tests
 ├── examples/               # Usage examples
 │   └── basic_usage.py      # Basic usage demonstration
-├── pyproject.toml          # Poetry configuration
+├── pyproject.toml          # Project metadata
 ├── README.md               # Project documentation
 ├── Makefile                # Development commands
 └── .pre-commit-config.yaml # Code quality hooks
@@ -25,7 +25,7 @@ memoir-ai/
 
 ### Task 1: Project Structure and Core Dependencies
 
-- ✅ Python package structure with poetry configuration
+- ✅ Python package structure with uv-based dependency workflow
 - ✅ Core dependencies: SQLAlchemy, Pydantic AI, liteLLM, asyncio support
 - ✅ Development dependencies: pytest, black, mypy, pre-commit hooks
 - ✅ Configuration management for database and LLM settings
@@ -111,16 +111,22 @@ The foundation is now solid and ready for implementing core features:
 ## Development Commands
 
 ```bash
+# Create virtual environment (one-time)
+uv venv .venv
+
+# Install dev dependencies and pre-commit hooks
+make dev-setup
+
 # Run tests
-python -m pytest tests/ -v
+make test
 
-# Run example
-PYTHONPATH=. python examples/basic_usage.py
+# Run example script
+UV_PROJECT_ENVIRONMENT=.venv UV_NO_PROJECT=1 uv run python examples/basic_usage.py
 
-# Format code (when tools are installed)
+# Format code
 make format
 
-# Run linting (when tools are installed)
+# Run linting
 make lint
 ```
 

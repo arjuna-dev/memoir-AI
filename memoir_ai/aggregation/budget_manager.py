@@ -6,9 +6,9 @@ capabilities using liteLLM for accurate token counting.
 """
 
 import logging
-from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from litellm import token_counter
@@ -18,10 +18,9 @@ except ImportError:
     LITELLM_AVAILABLE = False
     logging.warning("liteLLM not available, using fallback token counting")
 
-from ..exceptions import ValidationError, ConfigurationError
+from ..exceptions import ConfigurationError, ValidationError
 
-
-DEFAULT_MAX_TOKEN_BUDGET = 30000
+DEFAULT_MAX_TOKEN_BUDGET = 1000
 
 logger = logging.getLogger(__name__)
 

@@ -1,28 +1,30 @@
-.PHONY: install test lint format clean dev-setup
+.PHONY: install test lint format clean dev-setup dev
+
+UV ?= UV_PROJECT_ENVIRONMENT=.venv UV_NO_PROJECT=1 uv
 
 # Development setup
 dev-setup:
-	poetry install
-	poetry run pre-commit install
+	$(UV) pip install -r requirements-dev.txt
+	$(UV) run pre-commit install
 
 # Install dependencies
 install:
-	poetry install --no-dev
+	$(UV) pip install -r requirements.txt
 
 # Run tests
 test:
-	poetry run pytest -v --cov=memoir_ai --cov-report=html --cov-report=term
+	$(UV) run pytest -v --cov=memoir_ai --cov-report=html --cov-report=term
 
 # Run linting
 lint:
-	poetry run black --check memoir_ai tests
-	poetry run mypy memoir_ai
-	poetry run flake8 memoir_ai tests
+	$(UV) run black --check memoir_ai tests
+	$(UV) run mypy memoir_ai
+	$(UV) run flake8 memoir_ai tests
 
 # Format code
 format:
-	poetry run black memoir_ai tests
-	poetry run isort memoir_ai tests
+	$(UV) run black memoir_ai tests
+	$(UV) run isort memoir_ai tests
 
 # Clean build artifacts
 clean:
@@ -37,4 +39,4 @@ clean:
 
 # Run development server (for testing)
 dev:
-	poetry run python -c "from memoir_ai import MemoirAI; print('MemoirAI imported successfully')"
+	$(UV) run python -c "from memoir_ai import MemoirAI; print('MemoirAI imported successfully')"

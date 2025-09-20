@@ -6,30 +6,44 @@ different LLM providers with native structured output support.
 """
 
 import logging
-from typing import Type, Union, Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional, Type, Union
+
 from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
 
+from ..exceptions import ConfigurationError, LLMError
 from .schemas import (
-    CategorySelection,
+    ANSWER_SCHEMAS,
+    CLASSIFICATION_SCHEMAS,
+    NATIVE_OUTPUT_SUPPORTED_MODELS,
+    SUMMARIZATION_SCHEMAS,
     BatchClassificationResponse,
-    QueryCategorySelection,
-    SummarizationResponse,
-    FinalAnswer,
-    ContextualHelperGeneration,
     CategoryCreation,
     CategoryLimitResponse,
+    CategorySelection,
+    ContextualHelperGeneration,
+    FinalAnswer,
     ModelConfiguration,
+    QueryCategorySelection,
+    SummarizationResponse,
     supports_native_output,
-    CLASSIFICATION_SCHEMAS,
-    SUMMARIZATION_SCHEMAS,
-    ANSWER_SCHEMAS,
-    NATIVE_OUTPUT_SUPPORTED_MODELS,
 )
-from ..exceptions import ConfigurationError, LLMError
-
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_async_interface(agent: Agent) -> Agent:
+    """Ensure the agent exposes a run_async coroutine for backwards compatibility."""
+
+    run_async = getattr(agent, "run_async", None)
+    if callable(run_async):
+        return agent
+
+    async def _run_async(self, *args, **kwargs):
+        return await self.run(*args, **kwargs)
+
+    setattr(agent, "run_async", _run_async.__get__(agent, agent.__class__))
+    return agent
 
 
 class AgentFactory:
@@ -355,7 +369,7 @@ class AgentFactory:
             )
 
             logger.info(f"Created {agent_name} agent for model {model_name}")
-            return agent
+            return _ensure_async_interface(agent)
 
         except Exception as e:
             logger.error(
