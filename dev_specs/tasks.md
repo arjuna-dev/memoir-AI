@@ -118,7 +118,7 @@
   - Write comprehensive tests for summarization accuracy and budget compliance
   - _Requirements: 9.7, 9.8, 9.9, 9.10_
 
-- [-] 8.1 Implement core MemoirAI class and public methods
+- [x] 8.1 Implement core MemoirAI class and public methods
 
   - Create MemoirAI class with comprehensive configuration parameter support
   - Implement ingest_text method integrating chunking, classification, and storage with transaction management
