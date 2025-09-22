@@ -6,10 +6,11 @@ different LLM providers with native structured output support.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, cast
 
 from pydantic import BaseModel
 from pydantic_ai import Agent, NativeOutput
+from pydantic_ai.settings import ModelSettings
 
 from ..exceptions import ConfigurationError, LLMError
 from .schemas import (
@@ -359,13 +360,24 @@ class AgentFactory:
                 output_type = schema
 
             # Create agent with configuration
+            settings: Dict[str, Any] = {}
+            if config.max_tokens is not None:
+                settings["max_tokens"] = config.max_tokens
+            if config.temperature is not None:
+                settings["temperature"] = config.temperature
+            if config.timeout is not None:
+                settings["timeout"] = float(config.timeout)
+
+            model_settings: ModelSettings | None = (
+                cast(ModelSettings, settings) if settings else None
+            )
+
             agent = Agent(
                 model=model_name,
                 output_type=output_type,
-                temperature=config.temperature,
-                max_tokens=config.max_tokens,
-                timeout=config.timeout,
+                model_settings=model_settings,
                 retries=config.retry_attempts,
+                name=agent_name,
             )
 
             logger.info(f"Created {agent_name} agent for model {model_name}")
