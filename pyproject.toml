@@ -1,25 +1,24 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "memoir-ai"
 version = "0.1.0"
 description = "LLM-powered hierarchical text storage and retrieval library"
-authors = [{ name = "Your Name", email = "your.email@example.com" }]
+authors = [{ name = "Arjuna Dev", email = "arjuna1@pm.me" }]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
 [tool.setuptools.packages.find]
 include = ["memoir_ai*"]
 
-
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py312']
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
