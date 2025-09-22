@@ -15,6 +15,10 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
+        name: mypy (library only)
+        files: ^memoir_ai/ # only run on your package
+        language_version: python3.12
+        args: ["--config-file=pyproject.toml"]
 
 ci:
   skip: [unstaged]
