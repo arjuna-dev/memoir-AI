@@ -15,8 +15,8 @@ from memoir_ai.classification import (
     create_batch_classifier,
     validate_batch_size,
 )
-from memoir_ai.text_processing.chunker import TextChunk
 from memoir_ai.database.models import Category
+from memoir_ai.text_processing.chunker import TextChunk
 
 
 def create_sample_chunks() -> List[TextChunk]:
@@ -212,8 +212,9 @@ def demonstrate_metrics_tracking():
         classifier = BatchCategoryClassifier()
 
         # Simulate some batch metrics
-        from memoir_ai.classification.batch_classifier import BatchClassificationMetrics
         from datetime import datetime
+
+        from memoir_ai.classification.batch_classifier import BatchClassificationMetrics
 
         # Add sample metrics
         classifier.metrics_history = [

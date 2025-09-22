@@ -2,15 +2,16 @@
 Tests for budget manager and token estimation.
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from memoir_ai.aggregation.budget_manager import (
-    BudgetManager,
     BudgetConfig,
-    TokenEstimate,
+    BudgetManager,
     BudgetValidationResult,
     PromptLimitingStrategy,
+    TokenEstimate,
     create_budget_manager,
     estimate_tokens_fallback,
 )
@@ -20,7 +21,7 @@ from memoir_ai.exceptions import ValidationError
 class TestBudgetConfig:
     """Test BudgetConfig functionality."""
 
-    def test_budget_config_creation(self):
+    def test_budget_config_creation(self) -> None:
         """Test BudgetConfig creation with valid parameters."""
         config = BudgetConfig(
             max_token_budget=2000,  # Larger budget to accommodate default headroom
@@ -34,7 +35,7 @@ class TestBudgetConfig:
         assert config.model_name == "gpt-4"
         assert config.use_rankings is True
 
-    def test_budget_config_defaults(self):
+    def test_budget_config_defaults(self) -> None:
         """Test BudgetConfig with default values."""
         config = BudgetConfig(max_token_budget=500)
 
@@ -46,7 +47,7 @@ class TestBudgetConfig:
         assert config.summary_char_overage_tolerance_percent == 5
         assert config.summary_max_retries == 1
 
-    def test_budget_config_validation_invalid_budget(self):
+    def test_budget_config_validation_invalid_budget(self) -> None:
         """Test BudgetConfig validation with invalid budget."""
         with pytest.raises(ValidationError) as exc_info:
             BudgetConfig(max_token_budget=0)
@@ -56,7 +57,7 @@ class TestBudgetConfig:
             BudgetConfig(max_token_budget=-100)
         assert "max_token_budget must be positive" in str(exc_info.value)
 
-    def test_budget_config_validation_invalid_headroom(self):
+    def test_budget_config_validation_invalid_headroom(self) -> None:
         """Test BudgetConfig validation with invalid headroom."""
         with pytest.raises(ValidationError) as exc_info:
             BudgetConfig(
@@ -67,7 +68,7 @@ class TestBudgetConfig:
             in str(exc_info.value)
         )
 
-    def test_budget_config_validation_invalid_tolerance(self):
+    def test_budget_config_validation_invalid_tolerance(self) -> None:
         """Test BudgetConfig validation with invalid tolerance."""
         with pytest.raises(ValidationError) as exc_info:
             BudgetConfig(
@@ -82,7 +83,7 @@ class TestBudgetConfig:
 class TestTokenEstimate:
     """Test TokenEstimate functionality."""
 
-    def test_token_estimate_creation(self):
+    def test_token_estimate_creation(self) -> None:
         """Test TokenEstimate creation."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=100,
@@ -100,7 +101,7 @@ class TestTokenEstimate:
         assert estimate.within_budget is True
         assert estimate.tokens_over_budget == 0
 
-    def test_token_estimate_over_budget(self):
+    def test_token_estimate_over_budget(self) -> None:
         """Test TokenEstimate with over-budget scenario."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=200,
@@ -116,7 +117,7 @@ class TestTokenEstimate:
         assert estimate.within_budget is False
         assert estimate.tokens_over_budget == 100
 
-    def test_budget_utilization(self):
+    def test_budget_utilization(self) -> None:
         """Test budget utilization calculation."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=100,
@@ -138,7 +139,7 @@ class TestTokenEstimate:
 class TestBudgetManager:
     """Test BudgetManager functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.config = BudgetConfig(
             max_token_budget=2000,  # Larger budget to accommodate default headroom
@@ -147,12 +148,12 @@ class TestBudgetManager:
         )
         self.manager = BudgetManager(config=self.config)
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test BudgetManager initialization."""
         assert self.manager.config == self.config
         assert self.manager.fallback_chars_per_token == 4.0
 
-    def test_fallback_token_count(self):
+    def test_fallback_token_count(self) -> None:
         """Test fallback token counting."""
         text = "This is a test sentence with some words."
         count = self.manager._fallback_token_count(text)
@@ -161,12 +162,12 @@ class TestBudgetManager:
         expected = max(1, len(text) // 4)
         assert count == expected
 
-    def test_count_tokens_empty(self):
+    def test_count_tokens_empty(self) -> None:
         """Test token counting with empty text."""
         count = self.manager.count_tokens("")
         assert count == 0
 
-    def test_count_tokens_fallback(self):
+    def test_count_tokens_fallback(self) -> None:
         """Test token counting using fallback method."""
         # Mock liteLLM as unavailable
         with patch("memoir_ai.aggregation.budget_manager.LITELLM_AVAILABLE", False):
@@ -181,7 +182,7 @@ class TestBudgetManager:
 
     @patch("memoir_ai.aggregation.budget_manager.LITELLM_AVAILABLE", True)
     @patch("memoir_ai.aggregation.budget_manager.token_counter")
-    def test_count_tokens_litellm(self, mock_token_counter):
+    def test_count_tokens_litellm(self, mock_token_counter) -> None:
         """Test token counting using liteLLM."""
         mock_token_counter.return_value = 25
 
@@ -194,7 +195,7 @@ class TestBudgetManager:
 
     @patch("memoir_ai.aggregation.budget_manager.LITELLM_AVAILABLE", True)
     @patch("memoir_ai.aggregation.budget_manager.token_counter")
-    def test_count_tokens_litellm_error(self, mock_token_counter):
+    def test_count_tokens_litellm_error(self, mock_token_counter) -> None:
         """Test token counting when liteLLM raises an error."""
         mock_token_counter.side_effect = Exception("API error")
 
@@ -206,7 +207,7 @@ class TestBudgetManager:
         expected = max(1, len(text) // 4)
         assert count == expected
 
-    def test_estimate_budget_usage_basic(self):
+    def test_estimate_budget_usage_basic(self) -> None:
         """Test basic budget usage estimation."""
         query_text = "What is machine learning?"
         chunks_text = ["ML is a subset of AI.", "It uses algorithms to learn."]
@@ -224,7 +225,7 @@ class TestBudgetManager:
         assert estimate.fixed_prompt_chars == len(query_text)
         assert estimate.chunks_total_chars == sum(len(chunk) for chunk in chunks_text)
 
-    def test_estimate_budget_usage_with_context(self):
+    def test_estimate_budget_usage_with_context(self) -> None:
         """Test budget estimation with contextual helper."""
         query_text = "What is AI?"
         contextual_helper = "Focus on technical aspects"
@@ -243,7 +244,7 @@ class TestBudgetManager:
         )  # newlines
         assert estimate.fixed_prompt_chars == expected_fixed_chars
 
-    def test_estimate_budget_usage_within_budget(self):
+    def test_estimate_budget_usage_within_budget(self) -> None:
         """Test budget estimation when within budget."""
         # Use small text that should be within budget
         query_text = "Test"
@@ -256,7 +257,7 @@ class TestBudgetManager:
         assert estimate.within_budget is True
         assert estimate.tokens_over_budget == 0
 
-    def test_estimate_budget_usage_over_budget(self):
+    def test_estimate_budget_usage_over_budget(self) -> None:
         """Test budget estimation when over budget."""
         # Create a config with very small budget
         small_config = BudgetConfig(max_token_budget=10)
@@ -277,7 +278,7 @@ class TestBudgetManager:
         assert estimate.within_budget is False
         assert estimate.tokens_over_budget > 0
 
-    def test_validate_budget_within_budget(self):
+    def test_validate_budget_within_budget(self) -> None:
         """Test budget validation when within budget."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=100,
@@ -295,7 +296,7 @@ class TestBudgetManager:
         assert result.requires_action is False
         assert result.error_message is None
 
-    def test_validate_budget_pruning_strategy(self):
+    def test_validate_budget_pruning_strategy(self) -> None:
         """Test budget validation with pruning strategy."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=100,
@@ -315,7 +316,7 @@ class TestBudgetManager:
         assert result.recommended_strategy == PromptLimitingStrategy.PRUNE
         assert result.target_tokens == 900  # 1000 - 100
 
-    def test_validate_budget_pruning_impossible(self):
+    def test_validate_budget_pruning_impossible(self) -> None:
         """Test budget validation when pruning cannot help."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=1200,  # Exceeds budget by itself
@@ -335,7 +336,7 @@ class TestBudgetManager:
         assert "Fixed prompt exceeds budget" in result.error_message
         assert result.recommended_strategy == PromptLimitingStrategy.SUMMARIZE
 
-    def test_validate_budget_summarization_strategy(self):
+    def test_validate_budget_summarization_strategy(self) -> None:
         """Test budget validation with summarization strategy."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=200,
@@ -358,7 +359,7 @@ class TestBudgetManager:
         assert result.required_compression_ratio == 0.8  # 800/1000
         assert result.target_tokens == 800  # 1000 - 200
 
-    def test_calculate_compression_requirements(self):
+    def test_calculate_compression_requirements(self) -> None:
         """Test compression requirements calculation."""
         estimate = TokenEstimate(
             fixed_prompt_tokens=200,
@@ -381,7 +382,7 @@ class TestBudgetManager:
         assert len(requirements["target_char_counts"]) == 3
         assert requirements["available_tokens"] == 800
 
-    def test_validate_final_prompt_within_budget(self):
+    def test_validate_final_prompt_within_budget(self) -> None:
         """Test final prompt validation when within budget."""
         prompt = "Short prompt"
 
@@ -391,7 +392,7 @@ class TestBudgetManager:
         assert token_count > 0
         assert "within budget" in message
 
-    def test_validate_final_prompt_over_budget(self):
+    def test_validate_final_prompt_over_budget(self) -> None:
         """Test final prompt validation when over budget."""
         # Create manager with very small budget
         small_config = BudgetConfig(max_token_budget=5)
@@ -405,7 +406,7 @@ class TestBudgetManager:
         assert token_count > 5
         assert "exceeds budget" in message
 
-    def test_get_budget_statistics(self):
+    def test_get_budget_statistics(self) -> None:
         """Test getting budget statistics."""
         stats = self.manager.get_budget_statistics()
 
@@ -421,7 +422,7 @@ class TestBudgetManager:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_budget_manager(self):
+    def test_create_budget_manager(self) -> None:
         """Test create_budget_manager function."""
         manager = create_budget_manager(
             max_token_budget=2000,
@@ -438,7 +439,7 @@ class TestUtilityFunctions:
         assert manager.config.model_name == "gpt-3.5-turbo"
         assert manager.config.use_rankings is False
 
-    def test_estimate_tokens_fallback(self):
+    def test_estimate_tokens_fallback(self) -> None:
         """Test fallback token estimation function."""
         text = "This is a test sentence."
 
@@ -452,7 +453,7 @@ class TestUtilityFunctions:
         expected = max(1, int(len(text) / 2.0))
         assert tokens == expected
 
-    def test_estimate_tokens_fallback_empty(self):
+    def test_estimate_tokens_fallback_empty(self) -> None:
         """Test fallback token estimation with empty text."""
         tokens = estimate_tokens_fallback("")
         assert tokens == 0

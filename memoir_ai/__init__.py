@@ -6,31 +6,22 @@ try:  # Core may import optional modules not yet implemented (e.g., iterative cl
     from .core import MemoirAI  # type: ignore
 except Exception:  # pragma: no cover
     MemoirAI = None  # type: ignore
-from .models import (
-    IngestionResult,
-    QueryResult,
-    CategoryTree,
-    QueryStrategy,
-    PromptLimitingStrategy,
-)
+from .database import Category, CategoryLimits, Chunk, ContextualHelper, DatabaseManager
 from .exceptions import (
-    MemoirAIError,
-    ConfigurationError,
     ClassificationError,
+    ConfigurationError,
     DatabaseError,
+    MemoirAIError,
     ValidationError,
 )
-from .database import (
-    DatabaseManager,
-    Category,
-    Chunk,
-    ContextualHelper,
-    CategoryLimits,
+from .models import (
+    CategoryTree,
+    IngestionResult,
+    PromptLimitingStrategy,
+    QueryResult,
+    QueryStrategy,
 )
-from .text_processing import (
-    TextChunker,
-    TextChunk,
-)
+from .text_processing import TextChunk, TextChunker
 
 # Query imports temporarily disabled to avoid circular imports
 # from .query import (

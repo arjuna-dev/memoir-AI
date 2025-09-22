@@ -3,8 +3,9 @@ Token-based text chunker for MemoirAI.
 """
 
 import re
-from typing import List, Optional, Dict, Any, Union
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
+
 from litellm import token_counter
 
 from ..exceptions import ValidationError
@@ -21,7 +22,7 @@ class TextChunk:
     source_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate chunk after initialization."""
         if not self.content or not self.content.strip():
             raise ValidationError(
@@ -72,7 +73,7 @@ class TextChunker:
         preserve_paragraphs: bool = True,
         merge_small_chunks: bool = True,
         split_large_chunks: bool = True,
-    ):
+    ) -> None:
         """
         Initialize text chunker with configuration.
 
@@ -116,7 +117,7 @@ class TextChunker:
         # Compile delimiter patterns for efficient splitting
         self._compile_delimiter_patterns()
 
-    def _compile_delimiter_patterns(self):
+    def _compile_delimiter_patterns(self) -> None:
         """Compile regex patterns for delimiters."""
         # Escape special regex characters in delimiters
         escaped_delimiters = [re.escape(d) for d in self.delimiters]
@@ -141,7 +142,7 @@ class TextChunker:
             return 0
 
         try:
-            return token_counter(model=self.model_name, text=text)
+            return int(token_counter(model=self.model_name, text=text))
         except Exception as e:
             # Fallback to simple word count estimation if token counting fails
             # This is a rough approximation: ~0.75 tokens per word
@@ -327,7 +328,6 @@ class TextChunker:
                 and current_chunk.token_count + next_chunk.token_count
                 <= self.max_tokens
             ):
-
                 # Merge chunks
                 merged_content = current_chunk.content + " " + next_chunk.content
                 merged_token_count = self.count_tokens(merged_content)
@@ -373,7 +373,7 @@ class TextChunker:
             return [chunk]
 
         sub_chunks = []
-        current_words = []
+        current_words: List[str] = []
         current_start = chunk.start_position
 
         for word in words:

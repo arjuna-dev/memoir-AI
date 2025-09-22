@@ -3,14 +3,15 @@ Tests for token-based text chunker.
 """
 
 import pytest
-from memoir_ai.text_processing.chunker import TextChunker, TextChunk
+
 from memoir_ai.exceptions import ValidationError
+from memoir_ai.text_processing.chunker import TextChunk, TextChunker
 
 
 class TestTextChunk:
     """Test TextChunk data class."""
 
-    def test_valid_chunk_creation(self):
+    def test_valid_chunk_creation(self) -> None:
         """Test creating a valid text chunk."""
         chunk = TextChunk(
             content="This is a test chunk.",
@@ -28,7 +29,7 @@ class TestTextChunk:
         assert chunk.source_id == "test_source"
         assert chunk.metadata == {"type": "test"}
 
-    def test_chunk_validation_empty_content(self):
+    def test_chunk_validation_empty_content(self) -> None:
         """Test validation of empty content."""
         with pytest.raises(ValidationError) as exc_info:
             TextChunk(content="", token_count=1, start_position=0, end_position=1)
@@ -38,7 +39,7 @@ class TestTextChunk:
             TextChunk(content="   ", token_count=1, start_position=0, end_position=3)
         assert "Chunk content cannot be empty" in str(exc_info.value)
 
-    def test_chunk_validation_token_count(self):
+    def test_chunk_validation_token_count(self) -> None:
         """Test validation of token count."""
         with pytest.raises(ValidationError) as exc_info:
             TextChunk(
@@ -55,7 +56,7 @@ class TestTextChunk:
             )
         assert "Token count must be positive" in str(exc_info.value)
 
-    def test_chunk_validation_positions(self):
+    def test_chunk_validation_positions(self) -> None:
         """Test validation of start/end positions."""
         with pytest.raises(ValidationError) as exc_info:
             TextChunk(
@@ -78,7 +79,7 @@ class TestTextChunk:
 class TestTextChunker:
     """Test TextChunker functionality."""
 
-    def test_chunker_initialization_valid(self):
+    def test_chunker_initialization_valid(self) -> None:
         """Test valid chunker initialization."""
         chunker = TextChunker(
             min_tokens=200,
@@ -92,7 +93,7 @@ class TestTextChunker:
         assert chunker.delimiters == [".", "!", "?"]
         assert chunker.model_name == "gpt-4"
 
-    def test_chunker_initialization_defaults(self):
+    def test_chunker_initialization_defaults(self) -> None:
         """Test chunker initialization with defaults."""
         chunker = TextChunker()
 
@@ -104,7 +105,7 @@ class TestTextChunker:
         assert chunker.merge_small_chunks is True
         assert chunker.split_large_chunks is True
 
-    def test_chunker_initialization_validation(self):
+    def test_chunker_initialization_validation(self) -> None:
         """Test chunker initialization validation."""
         # Test negative min_tokens
         with pytest.raises(ValidationError) as exc_info:
@@ -123,7 +124,7 @@ class TestTextChunker:
             TextChunker(model_name="")
         assert "model_name cannot be empty" in str(exc_info.value)
 
-    def test_token_counting(self):
+    def test_token_counting(self) -> None:
         """Test token counting functionality."""
         chunker = TextChunker()
 
@@ -142,7 +143,7 @@ class TestTextChunker:
         long_count = chunker.count_tokens(long_text)
         assert long_count > count
 
-    def test_basic_chunking(self):
+    def test_basic_chunking(self) -> None:
         """Test basic text chunking functionality."""
         chunker = TextChunker(min_tokens=5, max_tokens=15)
 
@@ -158,7 +159,7 @@ class TestTextChunker:
         total_content = " ".join(chunk.content for chunk in chunks)
         assert len(total_content) > 0
 
-    def test_chunking_with_paragraphs(self):
+    def test_chunking_with_paragraphs(self) -> None:
         """Test chunking with paragraph preservation."""
         chunker = TextChunker(min_tokens=5, max_tokens=20, preserve_paragraphs=True)
 
@@ -178,7 +179,7 @@ class TestTextChunker:
             assert chunk.content.strip()
             assert chunk.token_count > 0
 
-    def test_chunking_small_text(self):
+    def test_chunking_small_text(self) -> None:
         """Test chunking with very small text."""
         chunker = TextChunker(min_tokens=10, max_tokens=50)
 
@@ -191,7 +192,7 @@ class TestTextChunker:
         assert small_text.replace(".", "").strip() in chunks[0].content
         assert chunks[0].token_count > 0
 
-    def test_chunking_large_text(self):
+    def test_chunking_large_text(self) -> None:
         """Test chunking with text that needs splitting."""
         chunker = TextChunker(min_tokens=5, max_tokens=10)
 
@@ -209,7 +210,7 @@ class TestTextChunker:
             len(reasonable_chunks) >= len(chunks) * 0.8
         )  # At least 80% should be reasonable
 
-    def test_chunking_empty_content(self):
+    def test_chunking_empty_content(self) -> None:
         """Test chunking with empty content."""
         chunker = TextChunker()
 
@@ -221,7 +222,7 @@ class TestTextChunker:
             chunker.chunk_text("   ")
         assert "Content cannot be empty" in str(exc_info.value)
 
-    def test_chunking_with_metadata(self):
+    def test_chunking_with_metadata(self) -> None:
         """Test chunking with metadata."""
         chunker = TextChunker(min_tokens=5, max_tokens=15)
 
@@ -235,7 +236,7 @@ class TestTextChunker:
             assert chunk.source_id == "meta_test"
             assert chunk.metadata == metadata
 
-    def test_chunking_with_different_delimiters(self):
+    def test_chunking_with_different_delimiters(self) -> None:
         """Test chunking with custom delimiters."""
         chunker = TextChunker(min_tokens=3, max_tokens=10, delimiters=["!", "?", ";"])
 
@@ -248,7 +249,7 @@ class TestTextChunker:
         combined_content = " ".join(chunk.content for chunk in chunks)
         assert "Fourth part." in combined_content
 
-    def test_merge_small_chunks_disabled(self):
+    def test_merge_small_chunks_disabled(self) -> None:
         """Test chunking with merge_small_chunks disabled."""
         chunker = TextChunker(min_tokens=10, max_tokens=50, merge_small_chunks=False)
 
@@ -258,7 +259,7 @@ class TestTextChunker:
         # Should have multiple small chunks since merging is disabled
         assert len(chunks) > 1
 
-    def test_split_large_chunks_disabled(self):
+    def test_split_large_chunks_disabled(self) -> None:
         """Test chunking with split_large_chunks disabled."""
         chunker = TextChunker(min_tokens=5, max_tokens=10, split_large_chunks=False)
 
@@ -270,7 +271,7 @@ class TestTextChunker:
         # Some chunks might exceed max_tokens
         assert len(chunks) >= 1
 
-    def test_content_normalization(self):
+    def test_content_normalization(self) -> None:
         """Test content normalization."""
         chunker = TextChunker(min_tokens=5, max_tokens=20)
 
@@ -289,7 +290,7 @@ class TestTextChunker:
             assert "\r" not in chunk.content  # No carriage returns
             assert "\n\n\n" not in chunk.content  # No triple newlines
 
-    def test_chunking_stats(self):
+    def test_chunking_stats(self) -> None:
         """Test chunking statistics."""
         chunker = TextChunker(min_tokens=5, max_tokens=15)
 
@@ -313,7 +314,7 @@ class TestTextChunker:
         assert isinstance(stats["chunks_below_min"], int)
         assert isinstance(stats["chunks_above_max"], int)
 
-    def test_chunking_stats_empty(self):
+    def test_chunking_stats_empty(self) -> None:
         """Test chunking statistics with empty chunks."""
         chunker = TextChunker()
 
@@ -323,7 +324,7 @@ class TestTextChunker:
         assert stats["total_tokens"] == 0
         assert stats["avg_tokens_per_chunk"] == 0
 
-    def test_position_tracking(self):
+    def test_position_tracking(self) -> None:
         """Test that chunk positions are tracked correctly."""
         chunker = TextChunker(min_tokens=3, max_tokens=10)
 
@@ -345,7 +346,7 @@ class TestTextChunker:
             # Allow some overlap due to merging/splitting
             assert next_chunk.start_position >= current_chunk.start_position
 
-    def test_edge_case_single_word(self):
+    def test_edge_case_single_word(self) -> None:
         """Test chunking with single word."""
         chunker = TextChunker(min_tokens=1, max_tokens=5)
 
@@ -356,7 +357,7 @@ class TestTextChunker:
         assert chunks[0].content.strip() == "Word"
         assert chunks[0].token_count > 0
 
-    def test_edge_case_very_long_word(self):
+    def test_edge_case_very_long_word(self) -> None:
         """Test chunking with very long single word."""
         chunker = TextChunker(min_tokens=1, max_tokens=5)
 
@@ -368,7 +369,7 @@ class TestTextChunker:
         assert chunks[0].content.strip() == text
         # Token count might exceed max due to single word
 
-    def test_different_models(self):
+    def test_different_models(self) -> None:
         """Test chunker with different model names."""
         models = ["gpt-3.5-turbo", "gpt-4", "claude-3-sonnet"]
         text = "This is a test sentence for different models."
@@ -380,7 +381,7 @@ class TestTextChunker:
             assert len(chunks) > 0
             assert all(chunk.token_count > 0 for chunk in chunks)
 
-    def test_chunker_with_special_characters(self):
+    def test_chunker_with_special_characters(self) -> None:
         """Test chunker with special characters and unicode."""
         chunker = TextChunker(min_tokens=5, max_tokens=15)
 

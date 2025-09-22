@@ -2,8 +2,9 @@
 Tests for pruning engine.
 """
 
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 
 from memoir_ai.aggregation.pruning_engine import (
     PruningEngine,
@@ -18,7 +19,7 @@ from memoir_ai.query.chunk_retrieval import ChunkResult
 class TestPruningResult:
     """Test PruningResult functionality."""
 
-    def test_pruning_result_creation(self):
+    def test_pruning_result_creation(self) -> None:
         """Test PruningResult creation."""
         now = datetime.now()
 
@@ -64,7 +65,7 @@ class TestPruningResult:
         assert result.pruning_ratio == 0.5  # 1/2
         assert result.token_reduction_ratio == 0.4  # 40/100
 
-    def test_pruning_result_ratios_zero_division(self):
+    def test_pruning_result_ratios_zero_division(self) -> None:
         """Test pruning result ratios with zero values."""
         result = PruningResult(
             kept_chunks=[],
@@ -87,7 +88,7 @@ class TestPruningResult:
 class TestPruningEngine:
     """Test PruningEngine functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.engine = PruningEngine()
 
@@ -129,15 +130,15 @@ class TestPruningEngine:
             ),
         ]
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test PruningEngine initialization."""
         assert self.engine.token_counter_func is not None
         assert self.engine.preserve_path_diversity is True
 
-    def test_initialization_custom(self):
+    def test_initialization_custom(self) -> None:
         """Test PruningEngine initialization with custom parameters."""
 
-        def custom_counter(text):
+        def custom_counter(text) -> None:
             return len(text) // 2
 
         engine = PruningEngine(
@@ -147,7 +148,7 @@ class TestPruningEngine:
         assert engine.token_counter_func == custom_counter
         assert engine.preserve_path_diversity is False
 
-    def test_default_token_counter(self):
+    def test_default_token_counter(self) -> None:
         """Test default token counter."""
         text = "This is a test sentence with some words."
         count = self.engine._default_token_counter(text)
@@ -155,7 +156,7 @@ class TestPruningEngine:
         expected = max(1, len(text) // 4)
         assert count == expected
 
-    def test_prune_chunks_empty_list(self):
+    def test_prune_chunks_empty_list(self) -> None:
         """Test pruning with empty chunk list."""
         result = self.engine.prune_chunks([], target_tokens=100)
 
@@ -165,7 +166,7 @@ class TestPruningEngine:
         assert result.kept_count == 0
         assert result.dropped_count == 0
 
-    def test_prune_chunks_within_budget(self):
+    def test_prune_chunks_within_budget(self) -> None:
         """Test pruning when chunks are already within budget."""
         # Set a high target that should accommodate all chunks
         result = self.engine.prune_chunks(
@@ -179,7 +180,7 @@ class TestPruningEngine:
         assert result.kept_count == len(self.chunks)
         assert result.dropped_count == 0
 
-    def test_prune_chunks_ranking_based(self):
+    def test_prune_chunks_ranking_based(self) -> None:
         """Test ranking-based pruning strategy."""
         # Set a target that should keep only the highest-ranked chunks
         result = self.engine.prune_chunks(
@@ -208,7 +209,7 @@ class TestPruningEngine:
                 min_kept_ranking >= max_dropped_ranking or len(result.kept_chunks) == 1
             )
 
-    def test_prune_chunks_deterministic_order(self):
+    def test_prune_chunks_deterministic_order(self) -> None:
         """Test deterministic order pruning strategy."""
         result = self.engine.prune_chunks(
             chunks=self.chunks,
@@ -232,7 +233,7 @@ class TestPruningEngine:
                     and prev_chunk.chunk_id <= curr_chunk.chunk_id
                 )
 
-    def test_prune_chunks_path_diversity(self):
+    def test_prune_chunks_path_diversity(self) -> None:
         """Test path diversity preservation."""
         engine = PruningEngine(preserve_path_diversity=True)
 
@@ -249,7 +250,7 @@ class TestPruningEngine:
         # With path diversity, we should have chunks from multiple paths if possible
         assert len(kept_paths) >= 1
 
-    def test_try_make_room_for_chunk(self):
+    def test_try_make_room_for_chunk(self) -> None:
         """Test making room for a new chunk."""
         # Start with some kept chunks
         kept_chunks = [self.chunks[1], self.chunks[2]]  # Medium and low relevance
@@ -262,7 +263,7 @@ class TestPruningEngine:
         # Should be able to make room by dropping lower-ranked chunks
         assert success is True or success is False  # Depends on token calculations
 
-    def test_analyze_pruning_impact(self):
+    def test_analyze_pruning_impact(self) -> None:
         """Test pruning impact analysis."""
         analysis = self.engine.analyze_pruning_impact(
             chunks=self.chunks, target_tokens=30, strategy=PruningStrategy.RANKING_BASED
@@ -278,7 +279,7 @@ class TestPruningEngine:
         assert analysis["total_chunks"] == len(self.chunks)
         assert analysis["strategy"] == "ranking_based"
 
-    def test_analyze_pruning_impact_empty(self):
+    def test_analyze_pruning_impact_empty(self) -> None:
         """Test pruning impact analysis with empty chunks."""
         analysis = self.engine.analyze_pruning_impact(
             chunks=[], target_tokens=100, strategy=PruningStrategy.DETERMINISTIC_ORDER
@@ -289,7 +290,7 @@ class TestPruningEngine:
         assert analysis["estimated_kept_chunks"] == 0
         assert analysis["estimated_pruning_ratio"] == 0.0
 
-    def test_prune_chunks_all_dropped(self):
+    def test_prune_chunks_all_dropped(self) -> None:
         """Test pruning when all chunks must be dropped."""
         result = self.engine.prune_chunks(
             chunks=self.chunks,
@@ -301,10 +302,10 @@ class TestPruningEngine:
         assert result.kept_count <= 1
         assert result.dropped_count >= len(self.chunks) - 1
 
-    def test_prune_chunks_custom_token_counter(self):
+    def test_prune_chunks_custom_token_counter(self) -> None:
         """Test pruning with custom token counter."""
 
-        def custom_counter(text):
+        def custom_counter(text) -> None:
             return len(text)  # 1 token per character
 
         engine = PruningEngine(token_counter_func=custom_counter)
@@ -323,10 +324,10 @@ class TestPruningEngine:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_pruning_engine(self):
+    def test_create_pruning_engine(self) -> None:
         """Test create_pruning_engine function."""
 
-        def custom_counter(text):
+        def custom_counter(text) -> None:
             return len(text) // 3
 
         engine = create_pruning_engine(
@@ -337,14 +338,14 @@ class TestUtilityFunctions:
         assert engine.token_counter_func == custom_counter
         assert engine.preserve_path_diversity is False
 
-    def test_create_pruning_engine_defaults(self):
+    def test_create_pruning_engine_defaults(self) -> None:
         """Test create_pruning_engine with defaults."""
         engine = create_pruning_engine()
 
         assert isinstance(engine, PruningEngine)
         assert engine.preserve_path_diversity is True
 
-    def test_prune_chunks_simple(self):
+    def test_prune_chunks_simple(self) -> None:
         """Test prune_chunks_simple utility function."""
         base_time = datetime.now()
 
@@ -375,7 +376,7 @@ class TestUtilityFunctions:
         assert isinstance(dropped_paths, list)
         assert len(kept_chunks) <= len(chunks)
 
-    def test_prune_chunks_simple_no_rankings(self):
+    def test_prune_chunks_simple_no_rankings(self) -> None:
         """Test prune_chunks_simple without rankings."""
         base_time = datetime.now()
 

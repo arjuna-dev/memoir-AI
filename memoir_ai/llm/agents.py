@@ -39,7 +39,7 @@ def _ensure_async_interface(agent: Agent) -> Agent:
     if callable(run_async):
         return agent
 
-    async def _run_async(self, *args, **kwargs):
+    async def _run_async(self: Agent, *args: Any, **kwargs: Any) -> Any:
         return await self.run(*args, **kwargs)
 
     setattr(agent, "run_async", _run_async.__get__(agent, agent.__class__))
@@ -54,7 +54,7 @@ class AgentFactory:
     agent configuration for different LLM providers and use cases.
     """
 
-    def __init__(self, default_config: Optional[ModelConfiguration] = None):
+    def __init__(self, default_config: Optional[ModelConfiguration] = None) -> None:
         """
         Initialize the agent factory.
 
@@ -408,7 +408,7 @@ class AgentFactory:
 
         return config
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the agent cache."""
         self._agent_cache.clear()
         logger.info("Agent cache cleared")

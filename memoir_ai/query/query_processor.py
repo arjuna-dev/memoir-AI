@@ -2,20 +2,20 @@
 
 import inspect
 import logging
-from typing import List, Dict, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from ..classification.category_manager import CategoryManager
+from ..exceptions import ClassificationError, ValidationError
+from .chunk_retrieval import ChunkRetriever, QueryResult, ResultConstructor
 from .query_strategy_engine import (
-    QueryStrategyEngine,
-    QueryStrategy,
     QueryExecutionResult,
+    QueryStrategy,
+    QueryStrategyEngine,
     validate_strategy_params,
 )
-from .chunk_retrieval import ChunkRetriever, ResultConstructor, QueryResult
-from ..classification.category_manager import CategoryManager
-from ..exceptions import ValidationError, ClassificationError
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class QueryProcessor:
         session: Session,
         model_name: str = "openai:gpt-4",
         default_chunk_limit: Optional[int] = 100,
-    ):
+    ) -> None:
         """
         Initialize query processor.
 
@@ -224,7 +224,7 @@ def create_query_processor(
     category_manager: CategoryManager,
     session: Session,
     model_name: str = "openai:gpt-4",
-    **kwargs,
+    **kwargs: Any,
 ) -> QueryProcessor:
     """
     Create a query processor with default configuration.
@@ -251,7 +251,7 @@ async def process_natural_language_query(
     category_manager: CategoryManager,
     session: Session,
     strategy: QueryStrategy = QueryStrategy.ONE_SHOT,
-    **kwargs,
+    **kwargs: Any,
 ) -> QueryResult:
     """
     Convenience function for processing a natural language query.
@@ -271,9 +271,7 @@ async def process_natural_language_query(
     )
 
     if not isinstance(processor, QueryProcessor):
-        processor = QueryProcessor(
-            category_manager=category_manager, session=session
-        )
+        processor = QueryProcessor(category_manager=category_manager, session=session)
 
     result = processor.process_query(query_text=query_text, strategy=strategy, **kwargs)
     return await result if inspect.isawaitable(result) else result

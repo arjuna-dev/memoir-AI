@@ -14,10 +14,10 @@ NOTE: Actual LLM interaction is deferred until integration phase with ResultAggr
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
 
-from .budget_manager import BudgetManager, TokenEstimate, PromptLimitingStrategy
 from ..exceptions import ValidationError
+from .budget_manager import BudgetManager, PromptLimitingStrategy, TokenEstimate
 
 
 @dataclass
@@ -55,7 +55,7 @@ class SummarizationProcessResult:
 
 
 class SummarizationEngine:
-    def __init__(self, budget_manager: BudgetManager):
+    def __init__(self, budget_manager: BudgetManager) -> None:
         self.budget_manager = budget_manager
         if (
             self.budget_manager.config.prompt_limiting_strategy

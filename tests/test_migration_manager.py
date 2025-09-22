@@ -2,21 +2,22 @@
 Tests for database migration management.
 """
 
-import pytest
-import tempfile
 import os
-from unittest.mock import patch, MagicMock
+import tempfile
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from memoir_ai.config import MemoirAIConfig
 from memoir_ai.database.migration_manager import MigrationManager
 from memoir_ai.database.models import Category, Chunk
-from memoir_ai.config import MemoirAIConfig
-from memoir_ai.exceptions import DatabaseError, ConfigurationError
+from memoir_ai.exceptions import ConfigurationError, DatabaseError
 
 
 class TestMigrationManager:
     """Test MigrationManager functionality."""
 
-    def test_migration_manager_initialization(self):
+    def test_migration_manager_initialization(self) -> None:
         """Test migration manager initialization."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -27,7 +28,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_database_initialization_new_database(self):
+    def test_database_initialization_new_database(self) -> None:
         """Test initializing a new database."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -47,7 +48,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_database_initialization_existing_database(self):
+    def test_database_initialization_existing_database(self) -> None:
         """Test initializing an existing database."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -63,7 +64,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_migration_tracking(self):
+    def test_migration_tracking(self) -> None:
         """Test migration tracking functionality."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -85,7 +86,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_schema_validation(self):
+    def test_schema_validation(self) -> None:
         """Test database schema validation."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -107,7 +108,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_database_reset(self):
+    def test_database_reset(self) -> None:
         """Test database reset functionality."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -137,7 +138,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_file_database_persistence(self):
+    def test_file_database_persistence(self) -> None:
         """Test migration system with file-based database."""
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_file:
             db_path = tmp_file.name
@@ -183,7 +184,7 @@ class TestMigrationManager:
             if os.path.exists(db_path):
                 os.unlink(db_path)
 
-    def test_error_handling(self):
+    def test_error_handling(self) -> None:
         """Test error handling in migration manager."""
         # Test with invalid database URL - this will fail at config level now
         with pytest.raises(ConfigurationError):
@@ -194,7 +195,7 @@ class TestMigrationManager:
             config = MemoirAIConfig(database_url="sqlite:///nonexistent/path/test.db")
             migration_manager = MigrationManager(config)
 
-    def test_migration_manager_with_database_manager_integration(self):
+    def test_migration_manager_with_database_manager_integration(self) -> None:
         """Test integration between migration manager and database manager."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -234,7 +235,7 @@ class TestMigrationManager:
         migration_manager.close()
 
     @patch("memoir_ai.database.migration_manager.command")
-    def test_migration_operations_mocked(self, mock_command):
+    def test_migration_operations_mocked(self, mock_command) -> None:
         """Test migration operations with mocked Alembic commands."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -256,7 +257,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_tables_exist_check(self):
+    def test_tables_exist_check(self) -> None:
         """Test the _tables_exist method."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)
@@ -270,7 +271,7 @@ class TestMigrationManager:
 
         migration_manager.close()
 
-    def test_migration_initialization_check(self):
+    def test_migration_initialization_check(self) -> None:
         """Test the _is_migration_initialized method."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         migration_manager = MigrationManager(config)

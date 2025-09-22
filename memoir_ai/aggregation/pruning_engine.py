@@ -6,12 +6,12 @@ strategies to fit content within token budgets.
 """
 
 import logging
-from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from ..query.chunk_retrieval import ChunkResult
 from ..exceptions import ValidationError
+from ..query.chunk_retrieval import ChunkResult
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,9 @@ class PruningEngine:
 
     def __init__(
         self,
-        token_counter_func: Optional[callable] = None,
+        token_counter_func: Optional[Callable[[str], int]] = None,
         preserve_path_diversity: bool = True,
-    ):
+    ) -> None:
         """
         Initialize pruning engine.
 
@@ -84,7 +84,9 @@ class PruningEngine:
             token_counter_func: Function to count tokens in text
             preserve_path_diversity: Whether to preserve chunks from different paths
         """
-        self.token_counter_func = token_counter_func or self._default_token_counter
+        self.token_counter_func: Callable[[str], int] = (
+            token_counter_func or self._default_token_counter
+        )
         self.preserve_path_diversity = preserve_path_diversity
 
     def _default_token_counter(self, text: str) -> int:
@@ -159,7 +161,7 @@ class PruningEngine:
             chunks, key=lambda c: (-c.ranked_relevance, c.created_at, c.chunk_id)
         )
 
-        kept_chunks = []
+        kept_chunks: List[ChunkResult] = []
         current_tokens = 0
 
         # Add chunks in ranking order until budget is reached
@@ -174,7 +176,9 @@ class PruningEngine:
                 if self.preserve_path_diversity:
                     # Try to preserve path diversity by checking if this chunk
                     # is from a path not yet represented
-                    existing_paths = {chunk.category_path for chunk in kept_chunks}
+                    existing_paths: Set[str] = {
+                        chunk.category_path for chunk in kept_chunks
+                    }
                     if chunk.category_path not in existing_paths:
                         # This chunk is from a new path, try to make room
                         if self._try_make_room_for_chunk(
@@ -196,7 +200,7 @@ class PruningEngine:
             chunk for chunk in chunks if chunk.chunk_id not in kept_chunk_ids
         ]
 
-        dropped_paths = list(set(chunk.category_path for chunk in dropped_chunks))
+        dropped_paths = list({chunk.category_path for chunk in dropped_chunks})
         kept_tokens = sum(
             self.token_counter_func(chunk.text_content) for chunk in kept_chunks
         )
@@ -231,7 +235,7 @@ class PruningEngine:
         # Sort chunks by deterministic order
         sorted_chunks = sorted(chunks, key=lambda c: (c.created_at, c.chunk_id))
 
-        kept_chunks = []
+        kept_chunks: List[ChunkResult] = []
         current_tokens = 0
 
         # Add chunks in deterministic order until budget is reached
@@ -251,7 +255,7 @@ class PruningEngine:
             chunk for chunk in chunks if chunk.chunk_id not in kept_chunk_ids
         ]
 
-        dropped_paths = list(set(chunk.category_path for chunk in dropped_chunks))
+        dropped_paths = list({chunk.category_path for chunk in dropped_chunks})
         kept_tokens = sum(
             self.token_counter_func(chunk.text_content) for chunk in kept_chunks
         )
@@ -305,7 +309,7 @@ class PruningEngine:
         freed_tokens = 0
 
         # Try to drop chunks to make room
-        chunks_to_remove = []
+        chunks_to_remove: List[ChunkResult] = []
         for chunk in kept_chunks:
             if freed_tokens >= tokens_to_free:
                 break
@@ -398,7 +402,7 @@ class PruningEngine:
                 break
 
         # Analyze ranking distribution
-        ranking_dist = {}
+        ranking_dist: Dict[int, int] = {}
         for chunk in chunks:
             rank = chunk.ranked_relevance
             if rank not in ranking_dist:
@@ -406,7 +410,7 @@ class PruningEngine:
             ranking_dist[rank] += 1
 
         # Identify affected paths
-        paths_affected = list(set(chunk.category_path for chunk in chunks[kept_count:]))
+        paths_affected = list({chunk.category_path for chunk in chunks[kept_count:]})
 
         return {
             "total_chunks": len(chunks),
@@ -424,9 +428,9 @@ class PruningEngine:
 
 # Utility functions
 def create_pruning_engine(
-    token_counter_func: Optional[callable] = None,
+    token_counter_func: Optional[Callable[[str], int]] = None,
     preserve_path_diversity: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> PruningEngine:
     """
     Create a pruning engine with default configuration.
@@ -450,7 +454,7 @@ def prune_chunks_simple(
     chunks: List[ChunkResult],
     target_tokens: int,
     use_rankings: bool = True,
-    token_counter_func: Optional[callable] = None,
+    token_counter_func: Optional[Callable[[str], int]] = None,
 ) -> Tuple[List[ChunkResult], List[str]]:
     """
     Simple utility function for pruning chunks.

@@ -1,33 +1,40 @@
-"""
-SQLAlchemy database models for MemoirAI.
-"""
+"""SQLAlchemy database models for MemoirAI."""
+
+from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, Dict, Any, List
-import json
+from typing import Any, Dict, Optional
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    SmallInteger,
+    JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
-    CheckConstraint,
-    UniqueConstraint,
     Index,
-    JSON,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    validates,
+)
 from sqlalchemy.sql import func
 
 from ..exceptions import ValidationError
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Declarative base class for ORM models."""
+
+    pass
 
 
 class Category(Base):
@@ -41,26 +48,33 @@ class Category(Base):
     __tablename__ = "categories"
 
     # Primary key
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Core fields
-    name = Column(String(255), nullable=False)
-    level = Column(SmallInteger, nullable=False)
-    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    level: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    parent_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("categories.id"), nullable=True
+    )
 
     # Optional fields
-    slug = Column(String(255), unique=True, nullable=True)
-    metadata_json = Column(JSON, nullable=True)
+    slug: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships
-    parent = relationship("Category", remote_side=[id], backref="children")
-    chunks = relationship("Chunk", back_populates="category")
+    parent: Mapped[Optional["Category"]] = relationship(
+        "Category", remote_side="Category.id", back_populates="children"
+    )
+    children: Mapped[list["Category"]] = relationship(back_populates="parent")
+    chunks: Mapped[list["Chunk"]] = relationship(back_populates="category")
 
     # Constraints
     __table_args__ = (
@@ -86,7 +100,7 @@ class Category(Base):
     )
 
     @validates("level")
-    def validate_level(self, key, level):
+    def validate_level(self, key: str, level: int) -> int:
         """Validate hierarchy level constraints."""
         if not (1 <= level <= 100):
             raise ValidationError(
@@ -97,7 +111,7 @@ class Category(Base):
         return level
 
     @validates("name")
-    def validate_name(self, key, name):
+    def validate_name(self, key: str, name: str) -> str:
         """Validate category name."""
         if not name or not name.strip():
             raise ValidationError(
@@ -107,12 +121,12 @@ class Category(Base):
         # Normalize name (strip whitespace)
         return name.strip()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Category(id={self.id}, name='{self.name}', level={self.level})>"
 
-    def get_full_path(self) -> List[str]:
+    def get_full_path(self) -> list[str]:
         """Get the full category path from root to this category."""
-        path = []
+        path: list[str] = []
         current = self
         while current:
             path.insert(0, current.name)
@@ -135,27 +149,33 @@ class Chunk(Base):
     __tablename__ = "chunks"
 
     # Primary key
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Core content
-    content = Column(Text, nullable=False)
-    token_count = Column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Category relationship (must be leaf-level)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("categories.id"), nullable=False
+    )
 
     # Source tracking
-    source_id = Column(String(255), nullable=True)
-    source_metadata = Column(JSON, nullable=True)
+    source_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
 
     # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
     # Relationships
-    category = relationship("Category", back_populates="chunks")
+    category: Mapped[Category] = relationship(back_populates="chunks")
 
     # Constraints and indexes
     __table_args__ = (
@@ -170,7 +190,7 @@ class Chunk(Base):
     )
 
     @validates("token_count")
-    def validate_token_count(self, key, token_count):
+    def validate_token_count(self, key: str, token_count: int) -> int:
         """Validate token count is positive."""
         if token_count <= 0:
             raise ValidationError(
@@ -181,7 +201,7 @@ class Chunk(Base):
         return token_count
 
     @validates("content")
-    def validate_content(self, key, content):
+    def validate_content(self, key: str, content: str) -> str:
         """Validate content is not empty."""
         if not content or not content.strip():
             raise ValidationError(
@@ -189,7 +209,7 @@ class Chunk(Base):
             )
         return content
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         content_preview = (
             self.content[:50] + "..." if len(self.content) > 50 else self.content
         )
@@ -206,22 +226,26 @@ class ContextualHelper(Base):
     __tablename__ = "contextual_helpers"
 
     # Primary key
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Source identification
-    source_id = Column(String(255), unique=True, nullable=False)
+    source_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     # Helper content
-    helper_text = Column(Text, nullable=False)
-    token_count = Column(Integer, nullable=False)
+    helper_text: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Helper metadata
-    is_user_provided = Column(Boolean, default=False, nullable=False)
-    version = Column(Integer, default=1, nullable=False)
+    is_user_provided: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
 
@@ -238,7 +262,7 @@ class ContextualHelper(Base):
     )
 
     @validates("token_count")
-    def validate_token_count(self, key, token_count):
+    def validate_token_count(self, key: str, token_count: int) -> int:
         """Validate token count constraints."""
         if token_count <= 0:
             raise ValidationError(
@@ -255,7 +279,7 @@ class ContextualHelper(Base):
         return token_count
 
     @validates("helper_text")
-    def validate_helper_text(self, key, helper_text):
+    def validate_helper_text(self, key: str, helper_text: str) -> str:
         """Validate helper text is not empty."""
         if not helper_text or not helper_text.strip():
             raise ValidationError(
@@ -264,7 +288,7 @@ class ContextualHelper(Base):
         return helper_text.strip()
 
     @validates("source_id")
-    def validate_source_id(self, key, source_id):
+    def validate_source_id(self, key: str, source_id: str) -> str:
         """Validate source ID is not empty."""
         if not source_id or not source_id.strip():
             raise ValidationError(
@@ -272,7 +296,7 @@ class ContextualHelper(Base):
             )
         return source_id.strip()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         helper_preview = (
             self.helper_text[:50] + "..."
             if len(self.helper_text) > 50
@@ -291,13 +315,15 @@ class CategoryLimits(Base):
     __tablename__ = "category_limits"
 
     # Primary key (level number)
-    level = Column(Integer, primary_key=True)
+    level: Mapped[int] = mapped_column(Integer, primary_key=True)
 
     # Limit configuration
-    max_categories = Column(Integer, nullable=False)
+    max_categories: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Timestamps
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
 
     # Constraints
     __table_args__ = (
@@ -307,7 +333,7 @@ class CategoryLimits(Base):
     )
 
     @validates("level")
-    def validate_level(self, key, level):
+    def validate_level(self, key: str, level: int) -> int:
         """Validate level is within valid range."""
         if not (1 <= level <= 100):
             raise ValidationError(
@@ -318,7 +344,7 @@ class CategoryLimits(Base):
         return level
 
     @validates("max_categories")
-    def validate_max_categories(self, key, max_categories):
+    def validate_max_categories(self, key: str, max_categories: int) -> int:
         """Validate max categories is positive."""
         if max_categories <= 0:
             raise ValidationError(
@@ -328,5 +354,5 @@ class CategoryLimits(Base):
             )
         return max_categories
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<CategoryLimits(level={self.level}, max_categories={self.max_categories})>"

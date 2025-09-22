@@ -3,13 +3,14 @@ Contextual helper generation system for MemoirAI.
 """
 
 import re
-from datetime import datetime
-from typing import Optional, Dict, Any, List, Union
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
+
 from litellm import token_counter
 
-from .chunker import TextChunk
 from ..exceptions import ValidationError
+from .chunker import TextChunk
 
 
 @dataclass
@@ -43,7 +44,7 @@ class ContextualHelperGenerator:
         derivation_budget_tokens: int = 2000,
         max_chunks_for_derivation: int = 5,
         model_name: str = "gpt-3.5-turbo",
-    ):
+    ) -> None:
         """
         Initialize contextual helper generator.
 
@@ -81,7 +82,7 @@ class ContextualHelperGenerator:
             return 0
 
         try:
-            return token_counter(model=self.model_name, text=text)
+            return int(token_counter(model=self.model_name, text=text))
         except Exception:
             # Fallback to word count estimation
             word_count = len(text.split())
@@ -222,7 +223,6 @@ class ContextualHelperGenerator:
             and not first_line.endswith(".")
             and len(first_line.split()) <= 15
         ):
-
             # Remove common markdown headers
             title = re.sub(r"^#+\s*", "", first_line)
             title = title.strip()
@@ -298,7 +298,7 @@ class ContextualHelperGenerator:
         # Look for repeated key terms
         words = re.findall(r"\b[a-zA-Z]{4,}\b", content.lower())
         if words:
-            word_freq = {}
+            word_freq: dict[str, int] = {}
             for word in words:
                 if word not in [
                     "this",
@@ -495,13 +495,11 @@ class ContextualHelperGenerator:
 
         # If even first sentence is too long, truncate by words
         words = helper_text.split()
-        truncated_words = []
+        truncated_words: list[str] = []
         total_tokens = 0
-
         for word in words:
             test_text = " ".join(truncated_words + [word])
             test_tokens = self.count_tokens(test_text)
-
             if test_tokens <= self.max_tokens - 1:  # Leave room for period
                 truncated_words.append(word)
                 total_tokens = test_tokens

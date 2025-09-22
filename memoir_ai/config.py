@@ -3,8 +3,8 @@
 import inspect
 import logging
 import os
-from typing import Dict, Union, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, Union
 
 from .exceptions import ConfigurationError
 
@@ -38,12 +38,12 @@ class MemoirAIConfig:
     # Additional settings
     extra_config: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration parameters after initialization."""
         self._validate_all_parameters()
         self._load_environment_variables()
 
-    def _validate_all_parameters(self):
+    def _validate_all_parameters(self) -> None:
         """Run all validation checks."""
         self._validate_token_constraints()
         self._validate_hierarchy_depth()
@@ -52,7 +52,7 @@ class MemoirAIConfig:
         self._validate_database_url()
         self._validate_llm_settings()
 
-    def _validate_token_constraints(self):
+    def _validate_token_constraints(self) -> None:
         """Validate token-related constraints."""
         # Requirement 7A.1: max_token_budget > chunk_min_tokens + overhead
         min_required_budget = self.chunk_min_tokens + 100  # 100 token overhead
@@ -73,7 +73,7 @@ class MemoirAIConfig:
                 suggested_fix="Ensure chunk_min_tokens < chunk_max_tokens",
             )
 
-    def _validate_hierarchy_depth(self):
+    def _validate_hierarchy_depth(self) -> None:
         """Validate hierarchy depth constraints."""
         # Requirement 7A.2: hierarchy_depth between 1 and 100
         if not (1 <= self.hierarchy_depth <= 100):
@@ -83,7 +83,7 @@ class MemoirAIConfig:
                 suggested_fix="Set hierarchy_depth to a value between 1 and 100",
             )
 
-    def _validate_batch_size(self):
+    def _validate_batch_size(self) -> None:
         """Validate batch size constraints."""
         # Requirement 7A.3: batch_size > 0 and <= 50
         if not (0 < self.batch_size <= 50):
@@ -93,7 +93,7 @@ class MemoirAIConfig:
                 suggested_fix="Set batch_size to a value between 1 and 50",
             )
 
-    def _validate_category_limits(self):
+    def _validate_category_limits(self) -> None:
         """Validate category limit constraints."""
         # Requirement 7A.5: all limits are positive integers
         if isinstance(self.max_categories_per_level, int):
@@ -125,7 +125,7 @@ class MemoirAIConfig:
                         suggested_fix=f"Ensure all levels are <= hierarchy_depth ({self.hierarchy_depth})",
                     )
 
-    def _validate_database_url(self):
+    def _validate_database_url(self) -> None:
         """Validate database URL format."""
         if not self.database_url:
             raise ConfigurationError(
@@ -136,7 +136,9 @@ class MemoirAIConfig:
 
         allow_invalid = bool(self.extra_config.get("allow_invalid_database_url"))
         if not allow_invalid:
-            allow_invalid = os.getenv("MEMOIR_ALLOW_INVALID_DATABASE_URL", "").lower() in {
+            allow_invalid = os.getenv(
+                "MEMOIR_ALLOW_INVALID_DATABASE_URL", ""
+            ).lower() in {
                 "1",
                 "true",
                 "yes",
@@ -167,7 +169,7 @@ class MemoirAIConfig:
                 self.database_url,
             )
 
-    def _validate_llm_settings(self):
+    def _validate_llm_settings(self) -> None:
         """Validate LLM provider and model settings."""
         if not self.llm_provider:
             raise ConfigurationError(
@@ -183,9 +185,9 @@ class MemoirAIConfig:
                 suggested_fix="Specify a model name (e.g., 'gpt-4', 'claude-3-sonnet')",
             )
 
-    def _load_environment_variables(self):
+    def _load_environment_variables(self) -> None:
         """Load configuration from environment variables."""
-        env_mappings = {
+        env_mappings: Dict[str, Union[str, tuple[str, type[Any]]]] = {
             "MEMOIR_DATABASE_URL": "database_url",
             "MEMOIR_LLM_PROVIDER": "llm_provider",
             "MEMOIR_MODEL_NAME": "model_name",

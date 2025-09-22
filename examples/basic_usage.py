@@ -3,7 +3,8 @@ Basic usage example for MemoirAI library.
 """
 
 import asyncio
-from memoir_ai import MemoirAI, QueryStrategy, PromptLimitingStrategy
+
+from memoir_ai import MemoirAI, PromptLimitingStrategy, QueryStrategy
 from memoir_ai.exceptions import ConfigurationError
 
 

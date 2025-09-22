@@ -8,20 +8,19 @@ and category management.
 
 import logging
 import time
-from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.orm import Session
 
-from ..text_processing.chunker import TextChunk
 from ..database.models import Category, Chunk
-from ..llm.schemas import CategorySelection
+from ..exceptions import ClassificationError, DatabaseError, ValidationError
 from ..llm.agents import create_classification_agent
+from ..llm.schemas import CategorySelection
+from ..text_processing.chunker import TextChunk
 from .batch_classifier import BatchCategoryClassifier, ClassificationResult
 from .category_manager import CategoryManager
-from ..exceptions import ClassificationError, ValidationError, DatabaseError
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class IterativeClassificationResult:
 
     chunk: TextChunk
     category_path: List[Category]
-    final_category: Category
+    final_category: Optional[Category]
     success: bool
     total_latency_ms: int
     llm_calls: int
@@ -78,7 +77,7 @@ class IterativeClassificationWorkflow:
         batch_size: int = 5,
         max_retries: int = 3,
         temperature: float = 0.0,
-    ):
+    ) -> None:
         """
         Initialize iterative classification workflow.
 
@@ -100,6 +99,7 @@ class IterativeClassificationWorkflow:
         self.temperature = temperature
 
         # Create classifiers
+        self.batch_classifier: Optional[BatchCategoryClassifier] = None
         if use_batch_processing:
             self.batch_classifier = BatchCategoryClassifier(
                 model_name=model_name,
@@ -157,7 +157,7 @@ class IterativeClassificationWorkflow:
                     total_llm_calls += result.llm_calls
 
                     # Store successful classification
-                    if result.success:
+                    if result.success and result.final_category:
                         await self._store_chunk_classification(
                             chunk, result.final_category, source_id
                         )
@@ -214,8 +214,8 @@ class IterativeClassificationWorkflow:
             Classification result for the chunk
         """
         start_time = time.time()
-        category_path = []
-        level_results = []
+        category_path: List[Category] = []
+        level_results: List[Dict[str, Any]] = []
         total_llm_calls = 0
         current_parent_id = None
 
@@ -225,10 +225,11 @@ class IterativeClassificationWorkflow:
                 level_start_time = time.time()
 
                 # Get existing categories at this level
-                existing_categories, can_create_new = (
-                    self.category_manager.get_categories_for_llm_prompt(
-                        level, current_parent_id
-                    )
+                (
+                    existing_categories,
+                    can_create_new,
+                ) = self.category_manager.get_categories_for_llm_prompt(
+                    level, current_parent_id
                 )
 
                 # Classify at this level
@@ -332,12 +333,13 @@ class IterativeClassificationWorkflow:
         try:
             response = await self.single_classifier.run_async(prompt)
 
-            if not response.data or not response.data.category:
+            data = getattr(response, "data", None)
+            if not isinstance(data, CategorySelection) or not data.category:
                 raise ClassificationError(
                     f"Empty category response at level {level}", retry_count=0
                 )
 
-            category_name = response.data.category.strip()
+            category_name = data.category.strip()
 
             # Validate category selection
             if not can_create_new:
@@ -373,7 +375,7 @@ class IterativeClassificationWorkflow:
         can_create_new: bool,
     ) -> str:
         """Create classification prompt for a specific level."""
-        context_parts = []
+        context_parts: List[str] = []
 
         if contextual_helper:
             context_parts.append(f"Document Context: {contextual_helper}")
@@ -478,7 +480,7 @@ Provide only the category name."""
         chunk: TextChunk,
         final_category: Category,
         source_id: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Store chunk classification result in database.
 
@@ -536,7 +538,7 @@ Provide only the category name."""
         results: List[IterativeClassificationResult],
         total_latency_ms: int,
         total_llm_calls: int,
-    ):
+    ) -> None:
         """Record metrics for workflow execution."""
         successful_results = [r for r in results if r.success]
         failed_results = [r for r in results if not r.success]
@@ -609,7 +611,7 @@ Provide only the category name."""
             "average_levels_per_chunk": avg_levels,
         }
 
-    def clear_metrics(self):
+    def clear_metrics(self) -> None:
         """Clear workflow metrics history."""
         self.metrics_history.clear()
         logger.info("Cleared workflow metrics history")
@@ -620,7 +622,7 @@ def create_iterative_classifier(
     db_session: Session,
     category_manager: CategoryManager,
     model_name: str = "openai:gpt-4",
-    **kwargs,
+    **kwargs: Any,
 ) -> IterativeClassificationWorkflow:
     """
     Create an iterative classification workflow with default configuration.

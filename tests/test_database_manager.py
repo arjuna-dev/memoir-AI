@@ -2,21 +2,22 @@
 Tests for database manager and engine functionality.
 """
 
-import pytest
-import tempfile
 import os
-from unittest.mock import patch, MagicMock
+import tempfile
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from memoir_ai.config import MemoirAIConfig
 from memoir_ai.database.engine import DatabaseManager
 from memoir_ai.database.models import Base, Category
-from memoir_ai.config import MemoirAIConfig
 from memoir_ai.exceptions import DatabaseError
 
 
 class TestDatabaseManager:
     """Test DatabaseManager functionality."""
 
-    def test_sqlite_initialization(self):
+    def test_sqlite_initialization(self) -> None:
         """Test SQLite database initialization."""
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_file:
             db_path = tmp_file.name
@@ -46,7 +47,7 @@ class TestDatabaseManager:
             if os.path.exists(db_path):
                 os.unlink(db_path)
 
-    def test_in_memory_sqlite(self):
+    def test_in_memory_sqlite(self) -> None:
         """Test in-memory SQLite database."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -70,7 +71,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_session_error_handling(self):
+    def test_session_error_handling(self) -> None:
         """Test session error handling and rollback."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -98,7 +99,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_get_table_info(self):
+    def test_get_table_info(self) -> None:
         """Test getting table information."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -122,7 +123,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_engine_kwargs_sqlite(self):
+    def test_engine_kwargs_sqlite(self) -> None:
         """Test SQLite-specific engine configuration."""
         config = MemoirAIConfig(database_url="sqlite:///test.db")
         db_manager = DatabaseManager(config)
@@ -136,7 +137,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_engine_kwargs_postgresql(self):
+    def test_engine_kwargs_postgresql(self) -> None:
         """Test PostgreSQL-specific engine configuration."""
         config = MemoirAIConfig(database_url="postgresql://user:pass@localhost/db")
         db_manager = DatabaseManager(config)
@@ -152,7 +153,7 @@ class TestDatabaseManager:
         # Note: We don't actually connect to PostgreSQL in tests
         db_manager.engine = None  # Prevent connection attempt in close()
 
-    def test_engine_kwargs_mysql(self):
+    def test_engine_kwargs_mysql(self) -> None:
         """Test MySQL-specific engine configuration."""
         config = MemoirAIConfig(database_url="mysql://user:pass@localhost/db")
         db_manager = DatabaseManager(config)
@@ -168,7 +169,7 @@ class TestDatabaseManager:
         # Note: We don't actually connect to MySQL in tests
         db_manager.engine = None  # Prevent connection attempt in close()
 
-    def test_invalid_database_url(self):
+    def test_invalid_database_url(self) -> None:
         """Test handling of invalid database URL."""
         config = MemoirAIConfig(database_url="invalid://url")
 
@@ -178,13 +179,13 @@ class TestDatabaseManager:
         assert "Failed to initialize database engine" in str(exc_info.value)
 
     @patch("time.sleep")  # Mock sleep to speed up tests
-    def test_execute_with_retry(self, mock_sleep):
+    def test_execute_with_retry(self, mock_sleep) -> None:
         """Test retry logic for database operations."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
 
         # Test successful operation (no retries needed)
-        def successful_operation():
+        def successful_operation() -> None:
             return "success"
 
         result = db_manager.execute_with_retry(successful_operation)
@@ -194,7 +195,7 @@ class TestDatabaseManager:
         # Test operation that fails then succeeds
         call_count = 0
 
-        def flaky_operation():
+        def flaky_operation() -> None:
             nonlocal call_count
             call_count += 1
             if call_count < 2:
@@ -211,7 +212,7 @@ class TestDatabaseManager:
         mock_sleep.reset_mock()
 
         # Test operation that always fails
-        def always_fails():
+        def always_fails() -> None:
             from sqlalchemy.exc import OperationalError
 
             raise OperationalError("Always fails", None, None)
@@ -224,7 +225,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_drop_tables(self):
+    def test_drop_tables(self) -> None:
         """Test dropping database tables."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -251,7 +252,7 @@ class TestDatabaseManager:
 
         db_manager.close()
 
-    def test_database_manager_context_usage(self):
+    def test_database_manager_context_usage(self) -> None:
         """Test using database manager in various contexts."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)

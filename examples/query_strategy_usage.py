@@ -6,13 +6,14 @@ to traverse the category hierarchy and find relevant content.
 """
 
 import asyncio
+
+from memoir_ai.database.models import Category
 from memoir_ai.query import (
-    QueryStrategyEngine,
     QueryStrategy,
+    QueryStrategyEngine,
     create_query_strategy_engine,
     validate_strategy_params,
 )
-from memoir_ai.database.models import Category
 
 
 async def main():

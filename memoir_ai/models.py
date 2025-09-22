@@ -1,11 +1,11 @@
-"""
-Data models and type definitions for MemoirAI.
-"""
+"""Data models and type definitions for MemoirAI."""
 
-from typing import List, Optional, Dict, Any, Union
-from enum import Enum
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 
 class QueryStrategy(Enum):
@@ -118,9 +118,9 @@ class QueryResult:
     used_chunks: List[Dict[str, Union[int, str]]]
     dropped_paths: Optional[List[str]] = None
     total_latency: float = 0.0
-    responses: List[LLMResponse] = None
+    responses: List[LLMResponse] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.responses is None:
             self.responses = []
 

@@ -2,10 +2,10 @@
 Database migration management for MemoirAI.
 """
 
-import os
 import logging
-from typing import Optional, List, Dict, Any
+import os
 from pathlib import Path
+from typing import Any, Dict, List, Optional, cast
 
 from alembic import command
 from alembic.config import Config
@@ -13,9 +13,9 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
-from .engine import DatabaseManager
 from ..config import MemoirAIConfig
 from ..exceptions import DatabaseError
+from .engine import DatabaseManager
 
 
 class MigrationManager:
@@ -26,7 +26,7 @@ class MigrationManager:
     and database initialization with proper error handling.
     """
 
-    def __init__(self, config: MemoirAIConfig):
+    def __init__(self, config: MemoirAIConfig) -> None:
         """Initialize migration manager with configuration."""
         self.config = config
         self.db_manager = DatabaseManager(config)
@@ -60,7 +60,7 @@ class MigrationManager:
 
         return alembic_cfg
 
-    def _ensure_version_table(self):
+    def _ensure_version_table(self) -> None:
         """Ensure the alembic_version table exists."""
 
         if not self.db_manager.engine:
@@ -78,7 +78,7 @@ class MigrationManager:
                 )
             )
 
-    def _stamp_version(self, revision: str):
+    def _stamp_version(self, revision: str) -> None:
         """Stamp the database with the provided migration revision."""
 
         if not self.db_manager.engine:
@@ -175,7 +175,7 @@ class MigrationManager:
         """Check if Alembic migration tracking is initialized."""
         return self._get_stamped_version() is not None
 
-    def _initialize_migration_tracking(self):
+    def _initialize_migration_tracking(self) -> None:
         """Initialize Alembic migration tracking."""
         try:
             self._ensure_version_table()
@@ -207,7 +207,7 @@ class MigrationManager:
         except Exception:
             return False
 
-    def _stamp_database(self):
+    def _stamp_database(self) -> None:
         """Stamp database with current migration revision."""
         try:
             self._stamp_version("001")
@@ -273,6 +273,12 @@ class MigrationManager:
             self.logger.debug(f"Alembic downgrade command failed: {exc}")
 
         if revision in {"base", None}:
+            if not self.db_manager.engine:
+                raise DatabaseError(
+                    "Database engine not available",
+                    operation="downgrade_database",
+                )
+
             with self.db_manager.engine.begin() as connection:
                 connection.execute(text("DELETE FROM alembic_version"))
             current_revision = None
@@ -308,7 +314,14 @@ class MigrationManager:
             else:
                 revision = command.revision(self.alembic_cfg, message=message)
 
-            return revision.revision
+            scripted_revision = cast(Any, revision)
+            revision_id = getattr(scripted_revision, "revision", None)
+            if not isinstance(revision_id, str):
+                raise DatabaseError(
+                    "Alembic did not return a revision identifier",
+                    operation="generate_migration",
+                )
+            return revision_id
 
         except Exception as e:
             raise DatabaseError(
@@ -406,7 +419,7 @@ class MigrationManager:
                 f"Failed to reset database: {str(e)}", operation="reset_database"
             )
 
-    def close(self):
+    def close(self) -> None:
         """Close database connections."""
         if self.db_manager:
             self.db_manager.close()

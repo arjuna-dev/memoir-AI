@@ -5,13 +5,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    cast,
+)
 
 from pydantic import BaseModel
 from pydantic_ai import Agent
 
 from ..database.models import Category
 from ..exceptions import ClassificationError, ValidationError
+
+if TYPE_CHECKING:
+    from ..classification.category_manager import CategoryManager
 
 
 class QueryStrategy(Enum):
@@ -81,7 +94,9 @@ class QueryExecutionResult:
 class QueryStrategyEngine:
     """Engine for executing category traversal strategies."""
 
-    def __init__(self, category_manager, model_name: str = "openai:gpt-4"):
+    def __init__(
+        self, category_manager: "CategoryManager", model_name: str = "openai:gpt-4"
+    ) -> None:
         self.category_manager = category_manager
         self.model_name = model_name
         self.session = getattr(category_manager, "db_session", None)
@@ -167,7 +182,12 @@ class QueryStrategyEngine:
         if not selected_categories:
             return [], responses
 
-        final_rank = responses[-1].llm_output.ranked_relevance if responses else 0
+        final_response = responses[-1] if responses else None
+        final_rank = (
+            final_response.llm_output.ranked_relevance
+            if final_response and final_response.llm_output
+            else 0
+        )
         path = CategoryPath(path=selected_categories, ranked_relevance=final_rank)
         return [path], responses
 
@@ -181,8 +201,8 @@ class QueryStrategyEngine:
         """Execute a branching strategy using simple deterministic expansion."""
 
         # Strategy parameters
-        n = params.get("n", 1)
-        n2 = params.get("n2", 1)
+        n = cast(int, params.get("n", 1))
+        n2 = cast(int, params.get("n2", 1))
 
         # Determine how many categories to select per level
         def selections_for_level(level_index: int) -> int:
@@ -227,13 +247,22 @@ class QueryStrategyEngine:
                 break
             active_paths = new_paths
 
-        category_paths = [
-            CategoryPath(path=path, ranked_relevance=res.llm_output.ranked_relevance)
-            if responses
-            else CategoryPath(path=path, ranked_relevance=0)
-            for path, res in zip(active_paths, responses[-len(active_paths) :])
-            if path
-        ]
+        category_paths: List[CategoryPath] = []
+        if responses:
+            relevant_responses = responses[-len(active_paths) :]
+        else:
+            relevant_responses = []
+
+        for path, res in zip(active_paths, relevant_responses):
+            if not path:
+                continue
+            rank = res.llm_output.ranked_relevance if res.llm_output else 0
+            category_paths.append(CategoryPath(path=path, ranked_relevance=rank))
+
+        if not responses:
+            for path in active_paths:
+                if path:
+                    category_paths.append(CategoryPath(path=path, ranked_relevance=0))
 
         return category_paths, responses
 
@@ -283,7 +312,7 @@ class QueryStrategyEngine:
     def _deduplicate_paths(self, paths: List[CategoryPath]) -> List[CategoryPath]:
         """Remove duplicate paths preserving first occurrence."""
 
-        seen: set = set()
+        seen: set[Tuple[int, ...]] = set()
         unique_paths: List[CategoryPath] = []
         for path in paths:
             key = tuple(cat.id for cat in path.path)
@@ -341,7 +370,7 @@ class QueryStrategyEngine:
         }
 
 
-def create_query_strategy_engine(**kwargs) -> QueryStrategyEngine:
+def create_query_strategy_engine(**kwargs: Any) -> QueryStrategyEngine:
     """Factory helper for query strategy engine."""
 
     from ..classification.category_manager import create_category_manager

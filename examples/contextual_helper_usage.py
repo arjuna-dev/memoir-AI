@@ -6,8 +6,8 @@ This example demonstrates how to use the contextual helper generation system
 to create context for LLM prompts during classification and retrieval.
 """
 
-from memoir_ai.text_processing.contextual_helper import ContextualHelperGenerator
 from memoir_ai.text_processing.chunker import TextChunk
+from memoir_ai.text_processing.contextual_helper import ContextualHelperGenerator
 
 
 def main():

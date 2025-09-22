@@ -6,16 +6,15 @@ category creation, validation, limit enforcement, and retrieval operations.
 """
 
 import logging
-from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
+from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func, desc
 
 from ..database.models import Category
-from ..exceptions import ValidationError, DatabaseError
-
+from ..exceptions import DatabaseError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ class CategoryManager:
         category_limits: Optional[
             Union[int, Dict[int, int], CategoryLimitConfig]
         ] = None,
-    ):
+    ) -> None:
         """
         Initialize category manager.
 
@@ -89,7 +88,7 @@ class CategoryManager:
         # Validate configuration
         self._validate_configuration()
 
-    def _validate_configuration(self):
+    def _validate_configuration(self) -> None:
         """Validate category manager configuration."""
         if (
             not isinstance(self.hierarchy_depth, int)
@@ -163,7 +162,7 @@ class CategoryManager:
             if limit:
                 query = query.limit(limit)
 
-            categories = query.all()
+            categories = cast(List[Category], query.all())
 
             logger.debug(
                 f"Retrieved {len(categories)} categories at level {level}, parent {parent_id}"
@@ -289,10 +288,11 @@ class CategoryManager:
             Category if found, None otherwise
         """
         try:
-            category = (
+            category = cast(
+                Optional[Category],
                 self.db_session.query(Category)
                 .filter(Category.id == category_id)
-                .first()
+                .first(),
             )
             return category
         except Exception as e:
@@ -309,8 +309,8 @@ class CategoryManager:
         Returns:
             List of categories from root to target
         """
-        path = []
-        current = category
+        path: List[Category] = []
+        current: Optional[Category] = category
 
         while current:
             path.insert(0, current)  # Insert at beginning to build path from root
@@ -343,7 +343,7 @@ class CategoryManager:
                     Category, Category.parent_id == parent_id, isouter=True
                 )
 
-            categories = query.all()
+            categories = cast(List[Category], query.all())
             return categories
 
         except Exception as e:
@@ -360,7 +360,8 @@ class CategoryManager:
         Returns:
             True if category is at leaf level
         """
-        return category.level == self.hierarchy_depth
+        level = cast(int, category.level)
+        return level == self.hierarchy_depth
 
     def get_category_stats(self) -> CategoryStats:
         """
@@ -376,7 +377,7 @@ class CategoryManager:
             )
 
             # Categories by level
-            level_counts = {}
+            level_counts: Dict[int, int] = {}
             for level in range(1, self.hierarchy_depth + 1):
                 count = (
                     self.db_session.query(func.count(Category.id))
@@ -397,7 +398,7 @@ class CategoryManager:
             leaf_categories = level_counts.get(self.hierarchy_depth, 0)
 
             # Levels at limit
-            categories_at_limit = []
+            categories_at_limit: List[int] = []
             for level in range(1, self.hierarchy_depth + 1):
                 limit = self.limits.get_limit_for_level(level)
                 if level_counts.get(level, 0) >= limit:
@@ -428,11 +429,11 @@ class CategoryManager:
         Returns:
             List of validation errors (empty if valid)
         """
-        errors = []
+        errors: List[str] = []
 
         try:
             # Check all categories
-            categories = self.db_session.query(Category).all()
+            categories = cast(List[Category], self.db_session.query(Category).all())
 
             for category in categories:
                 # Check level constraints
@@ -472,7 +473,7 @@ class CategoryManager:
 
     def _validate_category_creation(
         self, name: str, level: int, parent_id: Optional[int]
-    ):
+    ) -> None:
         """Validate category creation parameters."""
         if not name or not name.strip():
             raise ValidationError(
@@ -601,7 +602,7 @@ class CategoryManager:
 
 # Utility functions
 def create_category_manager(
-    db_session: Session, hierarchy_depth: int = 3, **kwargs
+    db_session: Session, hierarchy_depth: int = 3, **kwargs: Any
 ) -> CategoryManager:
     """
     Create a category manager with default configuration.

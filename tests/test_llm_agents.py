@@ -2,42 +2,43 @@
 Tests for LLM agents.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from memoir_ai.exceptions import ConfigurationError
 from memoir_ai.llm.agents import (
     AgentFactory,
-    get_agent_factory,
-    create_classification_agent,
     create_batch_classification_agent,
-    create_query_classification_agent,
-    create_summarization_agent,
-    create_final_answer_agent,
-    create_contextual_helper_agent,
     create_category_creation_agent,
     create_category_limit_agent,
-    validate_model_name,
-    get_supported_providers,
+    create_classification_agent,
+    create_contextual_helper_agent,
+    create_final_answer_agent,
+    create_query_classification_agent,
+    create_summarization_agent,
+    get_agent_factory,
     get_native_output_providers,
+    get_supported_providers,
+    validate_model_name,
 )
 from memoir_ai.llm.schemas import (
-    ModelConfiguration,
-    CategorySelection,
     BatchClassificationResponse,
-    QueryCategorySelection,
-    SummarizationResponse,
-    FinalAnswer,
-    ContextualHelperGeneration,
     CategoryCreation,
     CategoryLimitResponse,
+    CategorySelection,
+    ContextualHelperGeneration,
+    FinalAnswer,
+    ModelConfiguration,
+    QueryCategorySelection,
+    SummarizationResponse,
 )
-from memoir_ai.exceptions import ConfigurationError
 
 
 class TestAgentFactory:
     """Test AgentFactory functionality."""
 
-    def test_agent_factory_initialization_defaults(self):
+    def test_agent_factory_initialization_defaults(self) -> None:
         """Test AgentFactory initialization with defaults."""
         factory = AgentFactory()
 
@@ -46,7 +47,7 @@ class TestAgentFactory:
         assert factory.default_config.timeout == 30
         assert factory.default_config.retry_attempts == 3
 
-    def test_agent_factory_initialization_custom(self):
+    def test_agent_factory_initialization_custom(self) -> None:
         """Test AgentFactory initialization with custom config."""
         config = ModelConfiguration(
             model_name="anthropic:claude-3",
@@ -63,7 +64,7 @@ class TestAgentFactory:
         assert factory.default_config.retry_attempts == 5
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_classification_agent(self, mock_agent_class):
+    def test_create_classification_agent(self, mock_agent_class) -> None:
         """Test creating classification agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -81,7 +82,7 @@ class TestAgentFactory:
         assert mock_agent_class.call_count == 1
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_batch_classification_agent(self, mock_agent_class):
+    def test_create_batch_classification_agent(self, mock_agent_class) -> None:
         """Test creating batch classification agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -93,7 +94,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_query_classification_agent(self, mock_agent_class):
+    def test_create_query_classification_agent(self, mock_agent_class) -> None:
         """Test creating query classification agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -105,7 +106,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_summarization_agent(self, mock_agent_class):
+    def test_create_summarization_agent(self, mock_agent_class) -> None:
         """Test creating summarization agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -117,7 +118,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_final_answer_agent(self, mock_agent_class):
+    def test_create_final_answer_agent(self, mock_agent_class) -> None:
         """Test creating final answer agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -129,7 +130,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_contextual_helper_agent(self, mock_agent_class):
+    def test_create_contextual_helper_agent(self, mock_agent_class) -> None:
         """Test creating contextual helper agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -141,7 +142,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_category_creation_agent(self, mock_agent_class):
+    def test_create_category_creation_agent(self, mock_agent_class) -> None:
         """Test creating category creation agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -153,7 +154,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_create_category_limit_agent(self, mock_agent_class):
+    def test_create_category_limit_agent(self, mock_agent_class) -> None:
         """Test creating category limit agent."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -165,7 +166,7 @@ class TestAgentFactory:
         mock_agent_class.assert_called_once()
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_agent_with_custom_model(self, mock_agent_class):
+    def test_agent_with_custom_model(self, mock_agent_class) -> None:
         """Test creating agent with custom model."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -181,7 +182,7 @@ class TestAgentFactory:
         assert call_args[1]["model"] == "anthropic:claude-3"
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_agent_with_custom_config(self, mock_agent_class):
+    def test_agent_with_custom_config(self, mock_agent_class) -> None:
         """Test creating agent with custom configuration."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -213,7 +214,7 @@ class TestAgentFactory:
     @patch("memoir_ai.llm.agents.NativeOutput")
     def test_native_output_support(
         self, mock_native_output, mock_supports, mock_agent_class
-    ):
+    ) -> None:
         """Test native output support detection and usage."""
         mock_supports.return_value = True
         mock_native_output_instance = Mock()
@@ -234,7 +235,7 @@ class TestAgentFactory:
 
     @patch("memoir_ai.llm.agents.Agent")
     @patch("memoir_ai.llm.agents.supports_native_output")
-    def test_fallback_to_standard_schema(self, mock_supports, mock_agent_class):
+    def test_fallback_to_standard_schema(self, mock_supports, mock_agent_class) -> None:
         """Test fallback to standard schema when native output not supported."""
         mock_supports.return_value = False
         mock_agent = Mock()
@@ -251,7 +252,7 @@ class TestAgentFactory:
         assert call_args[1]["output_type"] == CategorySelection
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_agent_creation_error(self, mock_agent_class):
+    def test_agent_creation_error(self, mock_agent_class) -> None:
         """Test agent creation error handling."""
         mock_agent_class.side_effect = Exception("Agent creation failed")
 
@@ -262,7 +263,7 @@ class TestAgentFactory:
 
         assert "Failed to create CategorySelection agent" in str(exc_info.value)
 
-    def test_cache_management(self):
+    def test_cache_management(self) -> None:
         """Test agent cache management."""
         factory = AgentFactory()
 
@@ -289,7 +290,7 @@ class TestAgentFactory:
             assert cache_info["cached_agents"] == 0
             assert cache_info["cache_keys"] == []
 
-    def test_effective_config_model_override(self):
+    def test_effective_config_model_override(self) -> None:
         """Test effective config with model name override."""
         config = ModelConfiguration(model_name="base:model", temperature=0.5)
 
@@ -299,7 +300,7 @@ class TestAgentFactory:
         assert effective_config.model_name == "override:model"
         assert effective_config.temperature == 0.5  # Should keep other settings
 
-    def test_effective_config_config_override(self):
+    def test_effective_config_config_override(self) -> None:
         """Test effective config with config override."""
         default_config = ModelConfiguration(model_name="default:model")
         override_config = ModelConfiguration(
@@ -312,7 +313,7 @@ class TestAgentFactory:
         assert effective_config.model_name == "override:model"
         assert effective_config.temperature == 0.8
 
-    def test_effective_config_both_overrides(self):
+    def test_effective_config_both_overrides(self) -> None:
         """Test effective config with both model and config overrides."""
         default_config = ModelConfiguration(model_name="default:model")
         override_config = ModelConfiguration(model_name="config:model", temperature=0.8)
@@ -329,7 +330,7 @@ class TestGlobalFunctions:
     """Test global convenience functions."""
 
     @patch("memoir_ai.llm.agents.get_agent_factory")
-    def test_create_classification_agent_global(self, mock_get_factory):
+    def test_create_classification_agent_global(self, mock_get_factory) -> None:
         """Test global create_classification_agent function."""
         mock_factory = Mock()
         mock_agent = Mock()
@@ -344,7 +345,7 @@ class TestGlobalFunctions:
         )
 
     @patch("memoir_ai.llm.agents.get_agent_factory")
-    def test_create_batch_classification_agent_global(self, mock_get_factory):
+    def test_create_batch_classification_agent_global(self, mock_get_factory) -> None:
         """Test global create_batch_classification_agent function."""
         mock_factory = Mock()
         mock_agent = Mock()
@@ -359,14 +360,14 @@ class TestGlobalFunctions:
             None, config
         )
 
-    def test_get_agent_factory_singleton(self):
+    def test_get_agent_factory_singleton(self) -> None:
         """Test that get_agent_factory returns singleton."""
         factory1 = get_agent_factory()
         factory2 = get_agent_factory()
 
         assert factory1 is factory2
 
-    def test_get_agent_factory_with_config(self):
+    def test_get_agent_factory_with_config(self) -> None:
         """Test get_agent_factory with custom config."""
         config = ModelConfiguration(model_name="custom:model")
         factory = get_agent_factory(config)
@@ -377,13 +378,13 @@ class TestGlobalFunctions:
 class TestValidationFunctions:
     """Test validation utility functions."""
 
-    def test_validate_model_name_valid(self):
+    def test_validate_model_name_valid(self) -> None:
         """Test valid model name validation."""
         assert validate_model_name("openai:gpt-4") is True
         assert validate_model_name("anthropic:claude-3") is True
         assert validate_model_name("provider:model-name") is True
 
-    def test_validate_model_name_invalid(self):
+    def test_validate_model_name_invalid(self) -> None:
         """Test invalid model name validation."""
         assert validate_model_name("") is False
         assert validate_model_name("no-colon") is False
@@ -392,7 +393,7 @@ class TestValidationFunctions:
         assert validate_model_name(None) is False
         assert validate_model_name(123) is False
 
-    def test_get_supported_providers(self):
+    def test_get_supported_providers(self) -> None:
         """Test getting supported providers."""
         providers = get_supported_providers()
 
@@ -404,7 +405,7 @@ class TestValidationFunctions:
         assert "ollama" in providers
         assert "azure" in providers
 
-    def test_get_native_output_providers(self):
+    def test_get_native_output_providers(self) -> None:
         """Test getting native output providers."""
         providers = get_native_output_providers()
 
@@ -419,7 +420,7 @@ class TestAgentFactoryIntegration:
     """Integration tests for AgentFactory."""
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_different_agents_different_schemas(self, mock_agent_class):
+    def test_different_agents_different_schemas(self, mock_agent_class) -> None:
         """Test that different agent types use different schemas."""
         mock_agent = Mock()
         mock_agent_class.return_value = mock_agent
@@ -457,7 +458,7 @@ class TestAgentFactoryIntegration:
             assert new_calls[3][1]["output_type"] == FinalAnswer
 
     @patch("memoir_ai.llm.agents.Agent")
-    def test_cache_key_uniqueness(self, mock_agent_class):
+    def test_cache_key_uniqueness(self, mock_agent_class) -> None:
         """Test that cache keys are unique for different configurations."""
         mock_agent_class.return_value = Mock()
 

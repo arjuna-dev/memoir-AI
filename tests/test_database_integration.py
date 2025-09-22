@@ -2,20 +2,21 @@
 Integration tests for database functionality.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 
-from memoir_ai.database.engine import DatabaseManager
-from memoir_ai.database.models import Category, Chunk, ContextualHelper, CategoryLimits
+import pytest
+
 from memoir_ai.config import MemoirAIConfig
+from memoir_ai.database.engine import DatabaseManager
+from memoir_ai.database.models import Category, CategoryLimits, Chunk, ContextualHelper
 from memoir_ai.exceptions import DatabaseError
 
 
 class TestDatabaseIntegration:
     """Test complete database integration."""
 
-    def test_complete_workflow(self):
+    def test_complete_workflow(self) -> None:
         """Test complete database workflow with all models."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -118,7 +119,7 @@ class TestDatabaseIntegration:
 
         db_manager.close()
 
-    def test_constraint_violations(self):
+    def test_constraint_violations(self) -> None:
         """Test that database constraints are properly enforced."""
         config = MemoirAIConfig(database_url="sqlite:///:memory:")
         db_manager = DatabaseManager(config)
@@ -162,7 +163,7 @@ class TestDatabaseIntegration:
 
         db_manager.close()
 
-    def test_file_database(self):
+    def test_file_database(self) -> None:
         """Test with file-based SQLite database."""
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_file:
             db_path = tmp_file.name

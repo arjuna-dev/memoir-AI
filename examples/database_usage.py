@@ -3,7 +3,8 @@ Database usage example for MemoirAI library.
 """
 
 import asyncio
-from memoir_ai import MemoirAI, Category, Chunk, ContextualHelper, CategoryLimits
+
+from memoir_ai import Category, CategoryLimits, Chunk, ContextualHelper, MemoirAI
 from memoir_ai.exceptions import ConfigurationError, DatabaseError
 
 

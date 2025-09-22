@@ -2,35 +2,36 @@
 Tests for query processor integration.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from memoir_ai.database.models import Category
+from memoir_ai.exceptions import ValidationError
+from memoir_ai.query.chunk_retrieval import (
+    ChunkResult,
+    PathRetrievalResult,
+    QueryResult,
+)
 from memoir_ai.query.query_processor import (
     QueryProcessor,
     create_query_processor,
     process_natural_language_query,
 )
 from memoir_ai.query.query_strategy_engine import (
-    QueryStrategy,
-    QueryExecutionResult,
     CategoryPath,
     LLMCallResponse,
     QueryClassificationResult,
+    QueryExecutionResult,
+    QueryStrategy,
 )
-from memoir_ai.query.chunk_retrieval import (
-    PathRetrievalResult,
-    ChunkResult,
-    QueryResult,
-)
-from memoir_ai.database.models import Category
-from memoir_ai.exceptions import ValidationError
 
 
 class TestQueryProcessor:
     """Test QueryProcessor functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.mock_category_manager = Mock()
         self.mock_category_manager.hierarchy_depth = 3
@@ -53,7 +54,7 @@ class TestQueryProcessor:
 
         self.category_path = CategoryPath(path=self.categories, ranked_relevance=5)
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test QueryProcessor initialization."""
         assert self.processor.category_manager == self.mock_category_manager
         assert self.processor.session == self.mock_session
@@ -66,7 +67,7 @@ class TestQueryProcessor:
         assert self.processor.result_constructor is not None
 
     @pytest.mark.asyncio
-    async def test_process_query_success(self):
+    async def test_process_query_success(self) -> None:
         """Test successful query processing."""
         # Mock strategy execution result
         strategy_result = QueryExecutionResult(
@@ -120,7 +121,6 @@ class TestQueryProcessor:
                 self.processor.result_constructor, "validate_query_result"
             ) as mock_validator,
         ):
-
             mock_strategy.return_value = strategy_result
             mock_retriever.return_value = [path_result]
 
@@ -163,7 +163,7 @@ class TestQueryProcessor:
             assert result == expected_result
 
     @pytest.mark.asyncio
-    async def test_process_query_with_parameters(self):
+    async def test_process_query_with_parameters(self) -> None:
         """Test query processing with custom parameters."""
         with (
             patch.object(
@@ -181,7 +181,6 @@ class TestQueryProcessor:
                 self.processor.result_constructor, "validate_query_result"
             ) as mock_validator,
         ):
-
             # Setup mocks
             mock_strategy.return_value = QueryExecutionResult(
                 category_paths=[],
@@ -225,7 +224,7 @@ class TestQueryProcessor:
             )
 
     @pytest.mark.asyncio
-    async def test_process_query_error_handling(self):
+    async def test_process_query_error_handling(self) -> None:
         """Test error handling in query processing."""
         # Mock strategy engine to raise an error
         with patch.object(
@@ -247,7 +246,7 @@ class TestQueryProcessor:
             assert result.dropped_paths is not None
             assert "Strategy execution failed" in result.dropped_paths[0]
 
-    def test_get_query_statistics(self):
+    def test_get_query_statistics(self) -> None:
         """Test getting query statistics."""
         stats = self.processor.get_query_statistics()
 
@@ -257,7 +256,7 @@ class TestQueryProcessor:
         assert "available_strategies" in stats
         assert len(stats["available_strategies"]) == 4  # Four strategies
 
-    def test_validate_query_parameters_valid(self):
+    def test_validate_query_parameters_valid(self) -> None:
         """Test validation of valid query parameters."""
         errors = self.processor.validate_query_parameters(
             query_text="valid query",
@@ -267,7 +266,7 @@ class TestQueryProcessor:
 
         assert errors == []
 
-    def test_validate_query_parameters_invalid_query(self):
+    def test_validate_query_parameters_invalid_query(self) -> None:
         """Test validation of invalid query text."""
         # Empty query
         errors = self.processor.validate_query_parameters(
@@ -282,7 +281,7 @@ class TestQueryProcessor:
         )
         assert any("too long" in error for error in errors)
 
-    def test_validate_query_parameters_invalid_strategy(self):
+    def test_validate_query_parameters_invalid_strategy(self) -> None:
         """Test validation of invalid strategy."""
         errors = self.processor.validate_query_parameters(
             query_text="valid query",
@@ -291,7 +290,7 @@ class TestQueryProcessor:
 
         assert any("Invalid strategy type" in error for error in errors)
 
-    def test_validate_query_parameters_invalid_strategy_params(self):
+    def test_validate_query_parameters_invalid_strategy_params(self) -> None:
         """Test validation of invalid strategy parameters."""
         with patch(
             "memoir_ai.query.query_processor.validate_strategy_params"
@@ -312,7 +311,7 @@ class TestQueryProcessor:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_query_processor(self):
+    def test_create_query_processor(self) -> None:
         """Test create_query_processor function."""
         mock_category_manager = Mock()
         mock_session = Mock()
@@ -331,7 +330,7 @@ class TestUtilityFunctions:
         assert processor.default_chunk_limit == 50
 
     @pytest.mark.asyncio
-    async def test_process_natural_language_query(self):
+    async def test_process_natural_language_query(self) -> None:
         """Test process_natural_language_query convenience function."""
         mock_category_manager = Mock()
         mock_session = Mock()
@@ -344,7 +343,6 @@ class TestUtilityFunctions:
                 QueryProcessor, "process_query", new_callable=AsyncMock
             ) as mock_process,
         ):
-
             mock_processor = Mock()
             mock_create.return_value = mock_processor
 
@@ -386,20 +384,20 @@ class TestQueryProcessorIntegration:
     """Integration tests for query processor."""
 
     @pytest.mark.asyncio
-    async def test_end_to_end_query_processing(self):
+    async def test_end_to_end_query_processing(self) -> None:
         """Test complete end-to-end query processing."""
         # This would be a comprehensive integration test
         # that tests the entire pipeline with real-like data
         pass
 
     @pytest.mark.asyncio
-    async def test_query_processing_with_multiple_strategies(self):
+    async def test_query_processing_with_multiple_strategies(self) -> None:
         """Test query processing with different strategies."""
         # Test all four strategies with the same query
         pass
 
     @pytest.mark.asyncio
-    async def test_query_processing_performance(self):
+    async def test_query_processing_performance(self) -> None:
         """Test query processing performance with large datasets."""
         # Test performance characteristics
         pass

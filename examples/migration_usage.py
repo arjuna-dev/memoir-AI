@@ -3,11 +3,12 @@ Database migration usage example for MemoirAI library.
 """
 
 import asyncio
-import tempfile
 import os
+import tempfile
+
 from memoir_ai import MemoirAI
-from memoir_ai.database import MigrationManager, Category, Chunk
 from memoir_ai.config import MemoirAIConfig
+from memoir_ai.database import Category, Chunk, MigrationManager
 from memoir_ai.exceptions import DatabaseError
 
 

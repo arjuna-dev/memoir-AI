@@ -7,24 +7,23 @@ multiple text chunks in a single LLM call for improved performance and cost effi
 
 import logging
 import time
-from typing import List, Dict, Optional, Union, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pydantic_ai import Agent
 
-from ..text_processing.chunker import TextChunk
 from ..database.models import Category
+from ..exceptions import ClassificationError, LLMError, ValidationError
+from ..llm.agents import create_batch_classification_agent, create_classification_agent
 from ..llm.schemas import (
     BatchClassificationResponse,
-    ChunkClassificationRequest,
     CategorySelection,
+    ChunkClassificationRequest,
     LLMResponseMetadata,
     ValidationResult,
 )
-from ..llm.agents import create_batch_classification_agent, create_classification_agent
-from ..exceptions import ClassificationError, ValidationError, LLMError
-
+from ..text_processing.chunker import TextChunk
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ class BatchCategoryClassifier:
         hierarchy_depth: int = 3,
         max_categories_per_level: Union[int, Dict[int, int]] = 128,
         temperature: float = 0.0,
-    ):
+    ) -> None:
         """
         Initialize batch classifier.
 
@@ -106,7 +105,7 @@ class BatchCategoryClassifier:
         # Validate configuration
         self._validate_configuration()
 
-    def _validate_configuration(self):
+    def _validate_configuration(self) -> None:
         """Validate classifier configuration."""
         if self.batch_size <= 0:
             raise ValidationError(
@@ -541,7 +540,7 @@ Provide the category name only."""
         results: List[ClassificationResult],
         latency_ms: int,
         llm_calls: int,
-    ):
+    ) -> None:
         """Record metrics for batch processing."""
         successful = sum(1 for r in results if r.success)
         failed = len(results) - successful
@@ -595,7 +594,7 @@ Provide the category name only."""
             "average_chunks_per_batch": total_chunks / len(self.metrics_history),
         }
 
-    def clear_metrics(self):
+    def clear_metrics(self) -> None:
         """Clear metrics history."""
         self.metrics_history.clear()
         logger.info("Cleared classification metrics history")
@@ -603,7 +602,7 @@ Provide the category name only."""
 
 # Utility functions for batch processing
 def create_batch_classifier(
-    model_name: str = "openai:gpt-4", batch_size: int = 5, **kwargs
+    model_name: str = "openai:gpt-4", batch_size: int = 5, **kwargs: Any
 ) -> BatchCategoryClassifier:
     """
     Create a batch category classifier with default configuration.

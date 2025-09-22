@@ -6,16 +6,16 @@ fallback logic, and comprehensive result object construction.
 """
 
 import logging
-from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, asc, text
 from pydantic import BaseModel
+from sqlalchemy import and_, asc, desc, text
+from sqlalchemy.orm import Session
 
 from ..database.models import Category, Chunk
-from ..exceptions import ValidationError, DatabaseError
+from ..exceptions import DatabaseError, ValidationError
 from .query_strategy_engine import CategoryPath, LLMCallResponse
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ class ChunkRetriever:
         session: Session,
         default_limit: Optional[int] = None,
         enable_pagination: bool = True,
-    ):
+    ) -> None:
         """
         Initialize chunk retriever.
 
@@ -122,7 +122,7 @@ class ChunkRetriever:
         if not category_paths:
             return []
 
-        results = []
+        results: List[PathRetrievalResult] = []
 
         for category_path in category_paths:
             start_time = datetime.now()
@@ -249,7 +249,7 @@ class ChunkRetriever:
             result = self.session.execute(query, {"category_id": leaf_category.id})
 
             # Convert to ChunkResult objects
-            chunks = []
+            chunks: List[ChunkResult] = []
             for row in result:
                 chunk_result = ChunkResult(
                     chunk_id=row.chunk_id,
@@ -301,7 +301,7 @@ class ChunkRetriever:
                 .count()
             )
 
-            return count
+            return int(count)
 
         except Exception as e:
             logger.error(
@@ -322,7 +322,7 @@ class ResultConstructor:
     - Provides comprehensive metadata
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize result constructor."""
         pass
 
@@ -350,7 +350,7 @@ class ResultConstructor:
             Complete query result object
         """
         # Aggregate all chunks
-        all_chunks = []
+        all_chunks: List[ChunkResult] = []
         successful_paths = 0
         failed_paths = 0
 
@@ -406,7 +406,7 @@ class ResultConstructor:
         Returns:
             List of validation errors (empty if valid)
         """
-        errors = []
+        errors: List[str] = []
 
         # Check basic consistency
         if result.total_chunks != len(result.chunks):
@@ -448,7 +448,7 @@ class ResultConstructor:
 
 # Utility functions
 def create_chunk_retriever(
-    session: Session, default_limit: Optional[int] = 100, **kwargs
+    session: Session, default_limit: Optional[int] = 100, **kwargs: Any
 ) -> ChunkRetriever:
     """
     Create a chunk retriever with default configuration.
@@ -464,7 +464,7 @@ def create_chunk_retriever(
     return ChunkRetriever(session=session, default_limit=default_limit, **kwargs)
 
 
-def create_result_constructor(**kwargs) -> ResultConstructor:
+def create_result_constructor(**kwargs: Any) -> ResultConstructor:
     """
     Create a result constructor.
 

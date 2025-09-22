@@ -3,19 +3,21 @@ Alembic migration environment configuration.
 """
 
 import logging
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
 import os
 import sys
+from logging.config import fileConfig
+from typing import Optional
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Add the project root to the path so we can import our models
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 )
 
-from memoir_ai.database.models import Base
 from memoir_ai.config import MemoirAIConfig
+from memoir_ai.database.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -36,10 +38,10 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-def get_database_url():
+def get_database_url() -> str:
     """Get database URL from environment or configuration."""
     # Try to get from environment variable first
-    db_url = os.getenv("MEMOIR_DATABASE_URL")
+    db_url: Optional[str] = os.getenv("MEMOIR_DATABASE_URL")
     if db_url:
         return db_url
 

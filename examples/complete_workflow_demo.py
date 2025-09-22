@@ -4,10 +4,11 @@ Shows integration of database, migration, and text chunking systems.
 """
 
 import asyncio
-import tempfile
 import os
-from memoir_ai import MemoirAI, Category, Chunk, TextChunk
-from memoir_ai.exceptions import ValidationError, DatabaseError
+import tempfile
+
+from memoir_ai import Category, Chunk, MemoirAI, TextChunk
+from memoir_ai.exceptions import DatabaseError, ValidationError
 
 
 async def main():

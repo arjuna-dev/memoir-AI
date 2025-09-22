@@ -2,8 +2,10 @@
 Tests for configuration management and validation.
 """
 
-import pytest
 import os
+
+import pytest
+
 from memoir_ai.config import MemoirAIConfig
 from memoir_ai.exceptions import ConfigurationError
 
@@ -11,7 +13,7 @@ from memoir_ai.exceptions import ConfigurationError
 class TestMemoirAIConfig:
     """Test configuration validation."""
 
-    def test_valid_config(self):
+    def test_valid_config(self) -> None:
         """Test that valid configuration passes validation."""
         config = MemoirAIConfig(
             database_url="sqlite:///test.db",
@@ -26,7 +28,7 @@ class TestMemoirAIConfig:
         assert config.database_url == "sqlite:///test.db"
         assert config.hierarchy_depth == 3
 
-    def test_token_budget_validation(self):
+    def test_token_budget_validation(self) -> None:
         """Test token budget validation."""
         with pytest.raises(ConfigurationError) as exc_info:
             MemoirAIConfig(
@@ -37,7 +39,7 @@ class TestMemoirAIConfig:
         assert "max_token_budget" in str(exc_info.value)
         assert "401" in str(exc_info.value)  # 300 + 100 + 1
 
-    def test_chunk_size_validation(self):
+    def test_chunk_size_validation(self) -> None:
         """Test chunk size validation."""
         with pytest.raises(ConfigurationError) as exc_info:
             MemoirAIConfig(
@@ -47,7 +49,7 @@ class TestMemoirAIConfig:
             )
         assert "chunk_min_tokens" in str(exc_info.value)
 
-    def test_hierarchy_depth_validation(self):
+    def test_hierarchy_depth_validation(self) -> None:
         """Test hierarchy depth validation."""
         with pytest.raises(ConfigurationError) as exc_info:
             MemoirAIConfig(
@@ -61,7 +63,7 @@ class TestMemoirAIConfig:
             )
         assert "hierarchy_depth" in str(exc_info.value)
 
-    def test_batch_size_validation(self):
+    def test_batch_size_validation(self) -> None:
         """Test batch size validation."""
         with pytest.raises(ConfigurationError) as exc_info:
             MemoirAIConfig(database_url="sqlite:///test.db", batch_size=0)  # Too small
@@ -71,7 +73,7 @@ class TestMemoirAIConfig:
             MemoirAIConfig(database_url="sqlite:///test.db", batch_size=51)  # Too large
         assert "batch_size" in str(exc_info.value)
 
-    def test_category_limits_validation(self):
+    def test_category_limits_validation(self) -> None:
         """Test category limits validation."""
         # Test negative global limit
         with pytest.raises(ConfigurationError) as exc_info:
@@ -98,7 +100,7 @@ class TestMemoirAIConfig:
             )
         assert "exceeds hierarchy_depth" in str(exc_info.value)
 
-    def test_database_url_validation(self):
+    def test_database_url_validation(self) -> None:
         """Test database URL validation."""
         with pytest.raises(ConfigurationError) as exc_info:
             MemoirAIConfig(database_url="")
@@ -108,7 +110,7 @@ class TestMemoirAIConfig:
             MemoirAIConfig(database_url="invalid://url")
         assert "scheme not supported" in str(exc_info.value)
 
-    def test_environment_variables(self, monkeypatch):
+    def test_environment_variables(self, monkeypatch) -> None:
         """Test loading configuration from environment variables."""
         monkeypatch.setenv("MEMOIR_DATABASE_URL", "postgresql://test")
         monkeypatch.setenv("MEMOIR_HIERARCHY_DEPTH", "5")
@@ -120,7 +122,7 @@ class TestMemoirAIConfig:
         assert config.hierarchy_depth == 5
         assert config.batch_size == 10
 
-    def test_get_category_limit(self):
+    def test_get_category_limit(self) -> None:
         """Test category limit retrieval."""
         # Test global limit
         config = MemoirAIConfig(

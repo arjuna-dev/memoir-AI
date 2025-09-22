@@ -2,31 +2,32 @@
 Tests for batch classification system.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from memoir_ai.classification.batch_classifier import (
     BatchCategoryClassifier,
-    ClassificationResult,
     BatchClassificationMetrics,
+    ClassificationResult,
     create_batch_classifier,
     validate_batch_size,
 )
-from memoir_ai.text_processing.chunker import TextChunk
 from memoir_ai.database.models import Category
+from memoir_ai.exceptions import ClassificationError, ValidationError
 from memoir_ai.llm.schemas import (
     BatchClassificationResponse,
-    ChunkClassificationRequest,
     CategorySelection,
+    ChunkClassificationRequest,
 )
-from memoir_ai.exceptions import ValidationError, ClassificationError
+from memoir_ai.text_processing.chunker import TextChunk
 
 
 class TestBatchCategoryClassifier:
     """Test BatchCategoryClassifier functionality."""
 
-    def test_initialization_defaults(self):
+    def test_initialization_defaults(self) -> None:
         """Test classifier initialization with defaults."""
         with (
             patch(
@@ -36,7 +37,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             assert classifier.model_name == "openai:gpt-4"
@@ -46,7 +46,7 @@ class TestBatchCategoryClassifier:
             assert classifier.max_categories_per_level == 128
             assert classifier.temperature == 0.0
 
-    def test_initialization_custom(self):
+    def test_initialization_custom(self) -> None:
         """Test classifier initialization with custom parameters."""
         with (
             patch(
@@ -56,7 +56,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier(
                 model_name="anthropic:claude-3",
                 batch_size=10,
@@ -73,7 +72,7 @@ class TestBatchCategoryClassifier:
             assert classifier.max_categories_per_level == {1: 50, 2: 100}
             assert classifier.temperature == 0.7
 
-    def test_initialization_validation(self):
+    def test_initialization_validation(self) -> None:
         """Test classifier initialization validation."""
         with (
             patch(
@@ -83,7 +82,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             # Test invalid batch size
             with pytest.raises(ValidationError) as exc_info:
                 BatchCategoryClassifier(batch_size=0)
@@ -104,7 +102,7 @@ class TestBatchCategoryClassifier:
                 BatchCategoryClassifier(hierarchy_depth=0)
             assert "hierarchy_depth must be between 1 and 100" in str(exc_info.value)
 
-    def test_create_batches(self):
+    def test_create_batches(self) -> None:
         """Test batch creation from chunks."""
         with (
             patch(
@@ -114,7 +112,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier(batch_size=3)
 
             # Create test chunks
@@ -135,7 +132,7 @@ class TestBatchCategoryClassifier:
             assert len(batches[1]) == 3
             assert len(batches[2]) == 1
 
-    def test_create_batch_prompt(self):
+    def test_create_batch_prompt(self) -> None:
         """Test batch prompt creation."""
         with (
             patch(
@@ -145,7 +142,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             # Create test data
@@ -188,7 +184,7 @@ class TestBatchCategoryClassifier:
             assert "Machine learning algorithms" in prompt
             assert '"""' in prompt  # Check for proper chunk delimiters
 
-    def test_create_batch_prompt_no_existing_categories(self):
+    def test_create_batch_prompt_no_existing_categories(self) -> None:
         """Test batch prompt creation with no existing categories."""
         with (
             patch(
@@ -198,7 +194,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunks = [
@@ -215,7 +210,7 @@ class TestBatchCategoryClassifier:
             assert "No existing categories at this level" in prompt
             assert "You may create new categories" in prompt
 
-    def test_create_batch_prompt_category_limit_reached(self):
+    def test_create_batch_prompt_category_limit_reached(self) -> None:
         """Test batch prompt creation when category limit is reached."""
         with (
             patch(
@@ -225,7 +220,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier(max_categories_per_level=2)
 
             chunks = [
@@ -250,7 +244,7 @@ class TestBatchCategoryClassifier:
             assert "Category limit (2) reached" in prompt
             assert "MUST select from existing categories only" in prompt
 
-    def test_validate_batch_response_valid(self):
+    def test_validate_batch_response_valid(self) -> None:
         """Test validation of valid batch response."""
         with (
             patch(
@@ -260,7 +254,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             response = BatchClassificationResponse(
@@ -272,7 +265,7 @@ class TestBatchCategoryClassifier:
 
             assert classifier._validate_batch_response(response, 2) is True
 
-    def test_validate_batch_response_invalid(self):
+    def test_validate_batch_response_invalid(self) -> None:
         """Test validation of invalid batch responses."""
         with (
             patch(
@@ -282,7 +275,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             # Test empty response
@@ -321,7 +313,7 @@ class TestBatchCategoryClassifier:
             )
             assert classifier._validate_batch_response(response, 2) is False
 
-    def test_create_single_chunk_prompt(self):
+    def test_create_single_chunk_prompt(self) -> None:
         """Test single chunk prompt creation for retries."""
         with (
             patch(
@@ -331,7 +323,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunk = TextChunk(
@@ -353,7 +344,7 @@ class TestBatchCategoryClassifier:
             assert "Provide the category name only" in prompt
 
     @pytest.mark.asyncio
-    async def test_classify_chunks_batch_empty(self):
+    async def test_classify_chunks_batch_empty(self) -> None:
         """Test batch classification with empty chunks list."""
         with (
             patch(
@@ -363,7 +354,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             results = await classifier.classify_chunks_batch(
@@ -377,7 +367,7 @@ class TestBatchCategoryClassifier:
             assert results == []
 
     @pytest.mark.asyncio
-    async def test_process_batch_success(self):
+    async def test_process_batch_success(self) -> None:
         """Test successful batch processing."""
         # Mock agents
         mock_batch_agent = AsyncMock()
@@ -403,7 +393,6 @@ class TestBatchCategoryClassifier:
                 return_value=mock_single_agent,
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunks = [
@@ -438,7 +427,7 @@ class TestBatchCategoryClassifier:
             assert results[1].chunk_id == 2
 
     @pytest.mark.asyncio
-    async def test_process_batch_with_retries(self):
+    async def test_process_batch_with_retries(self) -> None:
         """Test batch processing with failed chunks requiring retries."""
         # Mock agents
         mock_batch_agent = AsyncMock()
@@ -473,7 +462,6 @@ class TestBatchCategoryClassifier:
                 return_value=mock_single_agent,
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunks = [
@@ -508,7 +496,7 @@ class TestBatchCategoryClassifier:
             assert results[1].retry_count == 1  # One retry
 
     @pytest.mark.asyncio
-    async def test_retry_failed_chunks_success(self):
+    async def test_retry_failed_chunks_success(self) -> None:
         """Test successful retry of failed chunks."""
         mock_batch_agent = AsyncMock()
         mock_single_agent = AsyncMock()
@@ -530,7 +518,6 @@ class TestBatchCategoryClassifier:
                 return_value=mock_single_agent,
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunk = TextChunk(
@@ -554,7 +541,7 @@ class TestBatchCategoryClassifier:
             assert results[0].retry_count == 1
 
     @pytest.mark.asyncio
-    async def test_retry_failed_chunks_all_retries_fail(self):
+    async def test_retry_failed_chunks_all_retries_fail(self) -> None:
         """Test retry when all attempts fail."""
         mock_batch_agent = AsyncMock()
         mock_single_agent = AsyncMock()
@@ -572,7 +559,6 @@ class TestBatchCategoryClassifier:
                 return_value=mock_single_agent,
             ),
         ):
-
             classifier = BatchCategoryClassifier(max_retries=2)
 
             chunk = TextChunk(
@@ -596,7 +582,7 @@ class TestBatchCategoryClassifier:
             assert "Failed after 2 retries" in results[0].error
             assert results[0].retry_count == 2
 
-    def test_record_batch_metrics(self):
+    def test_record_batch_metrics(self) -> None:
         """Test batch metrics recording."""
         with (
             patch(
@@ -606,7 +592,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             chunks = [Mock(), Mock(), Mock()]
@@ -639,7 +624,7 @@ class TestBatchCategoryClassifier:
             assert metrics.total_latency_ms == 1500
             assert metrics.llm_calls == 2
 
-    def test_get_metrics_summary(self):
+    def test_get_metrics_summary(self) -> None:
         """Test metrics summary generation."""
         with (
             patch(
@@ -649,7 +634,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             # Add some test metrics
@@ -689,7 +673,7 @@ class TestBatchCategoryClassifier:
             assert summary["total_llm_calls"] == 3
             assert summary["average_chunks_per_batch"] == 4.0
 
-    def test_get_metrics_summary_empty(self):
+    def test_get_metrics_summary_empty(self) -> None:
         """Test metrics summary with no data."""
         with (
             patch(
@@ -699,7 +683,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             summary = classifier.get_metrics_summary()
@@ -710,7 +693,7 @@ class TestBatchCategoryClassifier:
             assert summary["average_latency_ms"] == 0.0
             assert summary["total_llm_calls"] == 0
 
-    def test_clear_metrics(self):
+    def test_clear_metrics(self) -> None:
         """Test clearing metrics history."""
         with (
             patch(
@@ -720,7 +703,6 @@ class TestBatchCategoryClassifier:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = BatchCategoryClassifier()
 
             # Add some metrics
@@ -734,7 +716,7 @@ class TestBatchCategoryClassifier:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_batch_classifier(self):
+    def test_create_batch_classifier(self) -> None:
         """Test batch classifier creation utility."""
         with (
             patch(
@@ -744,7 +726,6 @@ class TestUtilityFunctions:
                 "memoir_ai.classification.batch_classifier.create_classification_agent"
             ),
         ):
-
             classifier = create_batch_classifier(
                 model_name="test:model", batch_size=10, max_retries=5
             )
@@ -754,7 +735,7 @@ class TestUtilityFunctions:
             assert classifier.batch_size == 10
             assert classifier.max_retries == 5
 
-    def test_validate_batch_size(self):
+    def test_validate_batch_size(self) -> None:
         """Test batch size validation utility."""
         assert validate_batch_size(1) is True
         assert validate_batch_size(5) is True
@@ -769,7 +750,7 @@ class TestUtilityFunctions:
 class TestClassificationResult:
     """Test ClassificationResult data class."""
 
-    def test_classification_result_creation(self):
+    def test_classification_result_creation(self) -> None:
         """Test creating classification result."""
         chunk = TextChunk(
             content="test", token_count=5, start_position=0, end_position=4
@@ -792,7 +773,7 @@ class TestClassificationResult:
         assert result.retry_count == 2
         assert result.latency_ms == 500
 
-    def test_classification_result_failed(self):
+    def test_classification_result_failed(self) -> None:
         """Test creating failed classification result."""
         chunk = TextChunk(
             content="test", token_count=5, start_position=0, end_position=4
@@ -815,7 +796,7 @@ class TestClassificationResult:
 class TestBatchClassificationMetrics:
     """Test BatchClassificationMetrics data class."""
 
-    def test_metrics_creation(self):
+    def test_metrics_creation(self) -> None:
         """Test creating batch metrics."""
         timestamp = datetime.now()
 

@@ -13,7 +13,7 @@ install:
 
 # Run tests
 test:
-	$(UV) run pytest -v --cov=memoir_ai --cov-report=html --cov-report=term
+	$(UV) run pytest -v
 
 # Run linting
 lint:

@@ -2,8 +2,8 @@
 Text processing module for MemoirAI.
 """
 
-from .chunker import TextChunker, TextChunk
-from .contextual_helper import ContextualHelperGenerator, ContextualHelperData
+from .chunker import TextChunk, TextChunker
+from .contextual_helper import ContextualHelperData, ContextualHelperGenerator
 
 __all__ = [
     "TextChunker",

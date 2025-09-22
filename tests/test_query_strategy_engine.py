@@ -2,28 +2,29 @@
 Tests for query strategy engine.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from memoir_ai.database.models import Category
+from memoir_ai.exceptions import ClassificationError, ValidationError
 from memoir_ai.query.query_strategy_engine import (
-    QueryStrategyEngine,
-    QueryStrategy,
     CategoryPath,
-    QueryClassificationResult,
     LLMCallResponse,
+    QueryClassificationResult,
     QueryExecutionResult,
+    QueryStrategy,
+    QueryStrategyEngine,
     create_query_strategy_engine,
     validate_strategy_params,
 )
-from memoir_ai.database.models import Category
-from memoir_ai.exceptions import ValidationError, ClassificationError
 
 
 class TestCategoryPath:
     """Test CategoryPath functionality."""
 
-    def test_category_path_creation(self):
+    def test_category_path_creation(self) -> None:
         """Test CategoryPath creation and properties."""
         categories = [
             Category(id=1, name="Technology", level=1),
@@ -39,7 +40,7 @@ class TestCategoryPath:
         assert path.depth == 3
         assert path.path_string == "Technology > AI > ML"
 
-    def test_category_path_empty(self):
+    def test_category_path_empty(self) -> None:
         """Test CategoryPath with empty path."""
         path = CategoryPath(path=[], ranked_relevance=1)
 
@@ -48,7 +49,7 @@ class TestCategoryPath:
         assert path.depth == 0
         assert path.path_string == ""
 
-    def test_category_path_equality(self):
+    def test_category_path_equality(self) -> None:
         """Test CategoryPath equality and hashing."""
         categories1 = [
             Category(id=1, name="Technology", level=1),
@@ -81,7 +82,7 @@ class TestCategoryPath:
 class TestQueryClassificationResult:
     """Test QueryClassificationResult Pydantic model."""
 
-    def test_query_classification_result_creation(self):
+    def test_query_classification_result_creation(self) -> None:
         """Test QueryClassificationResult creation."""
         result = QueryClassificationResult(category="Technology", ranked_relevance=5)
 
@@ -92,7 +93,7 @@ class TestQueryClassificationResult:
 class TestQueryStrategyEngine:
     """Test QueryStrategyEngine functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Mock category manager
         self.mock_category_manager = Mock()
@@ -115,7 +116,7 @@ class TestQueryStrategyEngine:
             Category(id=6, name="NLP", level=3, parent_id=3),
         ]
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test QueryStrategyEngine initialization."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(
@@ -127,7 +128,7 @@ class TestQueryStrategyEngine:
             assert engine.session == self.mock_category_manager.db_session
 
     @pytest.mark.asyncio
-    async def test_execute_strategy_invalid(self):
+    async def test_execute_strategy_invalid(self) -> None:
         """Test execute_strategy with invalid strategy."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
@@ -139,7 +140,7 @@ class TestQueryStrategyEngine:
             assert "Unknown strategy" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_one_shot_strategy(self):
+    async def test_one_shot_strategy(self) -> None:
         """Test one-shot strategy execution."""
         with patch("memoir_ai.query.query_strategy_engine.Agent") as mock_agent_class:
             # Mock the agent and its run method
@@ -193,7 +194,7 @@ class TestQueryStrategyEngine:
             assert path.path[1].name == "AI"
             assert path.path[2].name == "ML"
 
-    def test_deduplicate_paths(self):
+    def test_deduplicate_paths(self) -> None:
         """Test path deduplication."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
@@ -225,7 +226,7 @@ class TestQueryStrategyEngine:
             assert unique_paths[0].ranked_relevance == 5
             assert unique_paths[1].path[1].name == "Web"
 
-    def test_validate_paths(self):
+    def test_validate_paths(self) -> None:
         """Test path validation."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
@@ -246,7 +247,7 @@ class TestQueryStrategyEngine:
             assert len(valid_paths) == 1
             assert valid_paths[0].path == categories
 
-    def test_get_strategy_info(self):
+    def test_get_strategy_info(self) -> None:
         """Test getting strategy information."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
@@ -265,14 +266,14 @@ class TestQueryStrategyEngine:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_query_strategy_engine(self):
+    def test_create_query_strategy_engine(self) -> None:
         """Test create_query_strategy_engine function."""
         # For now, just test that the function exists and can be called
         # In a real implementation, this would test the actual creation logic
         engine_func = create_query_strategy_engine
         assert callable(engine_func)
 
-    def test_validate_strategy_params_one_shot(self):
+    def test_validate_strategy_params_one_shot(self) -> None:
         """Test parameter validation for one-shot strategy."""
         params = validate_strategy_params(QueryStrategy.ONE_SHOT, {})
         assert params == {}
@@ -281,7 +282,7 @@ class TestUtilityFunctions:
         params = validate_strategy_params(QueryStrategy.ONE_SHOT, {"n": 5})
         assert params == {}
 
-    def test_validate_strategy_params_wide_branch(self):
+    def test_validate_strategy_params_wide_branch(self) -> None:
         """Test parameter validation for wide branch strategy."""
         # Valid params
         params = validate_strategy_params(QueryStrategy.WIDE_BRANCH, {"n": 3})
@@ -300,7 +301,7 @@ class TestUtilityFunctions:
             validate_strategy_params(QueryStrategy.WIDE_BRANCH, {"n": "invalid"})
         assert "must be a positive integer" in str(exc_info.value)
 
-    def test_validate_strategy_params_zoom_in(self):
+    def test_validate_strategy_params_zoom_in(self) -> None:
         """Test parameter validation for zoom in strategy."""
         # Valid params
         params = validate_strategy_params(QueryStrategy.ZOOM_IN, {"n": 5, "n2": 2})
@@ -320,7 +321,7 @@ class TestUtilityFunctions:
             validate_strategy_params(QueryStrategy.ZOOM_IN, {"n": 3, "n2": 0})
         assert "must be a positive integer" in str(exc_info.value)
 
-    def test_validate_strategy_params_branch_out(self):
+    def test_validate_strategy_params_branch_out(self) -> None:
         """Test parameter validation for branch out strategy."""
         # Valid params
         params = validate_strategy_params(QueryStrategy.BRANCH_OUT, {"n": 2, "n2": 3})

@@ -2,15 +2,9 @@
 Database module for MemoirAI.
 """
 
-from .models import (
-    Base,
-    Category,
-    Chunk,
-    ContextualHelper,
-    CategoryLimits,
-)
 from .engine import DatabaseManager
 from .migration_manager import MigrationManager
+from .models import Base, Category, CategoryLimits, Chunk, ContextualHelper
 
 __all__ = [
     "Base",

@@ -7,6 +7,7 @@ from natural language query to retrieved chunks with metadata.
 
 import asyncio
 from datetime import datetime
+
 from memoir_ai.query import (
     QueryProcessor,
     QueryStrategy,

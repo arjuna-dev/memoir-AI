@@ -1,16 +1,15 @@
 import pytest
+
 from memoir_ai.aggregation.budget_manager import (
     BudgetConfig,
     BudgetManager,
     PromptLimitingStrategy,
 )
-from memoir_ai.aggregation.summarization_engine import (
-    SummarizationEngine,
-)
+from memoir_ai.aggregation.summarization_engine import SummarizationEngine
 
 
 @pytest.fixture
-def budget_manager():
+def budget_manager() -> None:
     config = BudgetConfig(
         max_token_budget=1000,
         prompt_limiting_strategy=PromptLimitingStrategy.SUMMARIZE,
@@ -20,7 +19,7 @@ def budget_manager():
     return BudgetManager(config)
 
 
-def test_analyze_no_compression_needed(budget_manager):
+def test_analyze_no_compression_needed(budget_manager) -> None:
     chunk_texts = ["short one", "another short"]
     # Force estimate where chunks_total_tokens small so ratio>=1
     estimate = budget_manager.estimate_budget_usage(
@@ -32,7 +31,7 @@ def test_analyze_no_compression_needed(budget_manager):
     assert len(plan["targets"]) == 2
 
 
-def test_summarize_basic_truncation(budget_manager):
+def test_summarize_basic_truncation(budget_manager) -> None:
     # Create larger texts so compression needed (simulate by adjusting estimate)
     chunk_texts = ["a" * 400, "b" * 500]
     estimate = budget_manager.estimate_budget_usage(
@@ -51,7 +50,7 @@ def test_summarize_basic_truncation(budget_manager):
         assert result.error_message is not None
 
 
-def test_engine_requires_summarize_strategy(budget_manager):
+def test_engine_requires_summarize_strategy(budget_manager) -> None:
     # Change config to PRUNE and expect validation error
     config = BudgetConfig(
         max_token_budget=500,

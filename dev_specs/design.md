@@ -135,7 +135,7 @@ class TextChunker:
         self.delimiters = delimiters
         self.model_name = model_name
 
-    def chunk_text(self, content: str, source_id: str = None) -> List[TextChunk]:
+    def chunk_text(self, content: str, source_id: str | None = None) -> List[TextChunk]:
         """Split text into meaningful chunks respecting token size constraints."""
 
     def _count_tokens(self, text: str) -> int:

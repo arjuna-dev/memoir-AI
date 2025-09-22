@@ -49,7 +49,7 @@ class BudgetConfig:
     summary_char_overage_tolerance_percent: int = 5
     summary_max_retries: int = 1
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         if self.max_token_budget <= 0:
             raise ValidationError(
@@ -144,7 +144,7 @@ class BudgetManager:
         self,
         config: BudgetConfig,
         fallback_chars_per_token: float = 4.0,
-    ):
+    ) -> None:
         """
         Initialize budget manager.
 
@@ -177,7 +177,7 @@ class BudgetManager:
 
         if LITELLM_AVAILABLE:
             try:
-                return token_counter(model=self.config.model_name, text=text)
+                return int(token_counter(model=self.config.model_name, text=text))
             except Exception as e:
                 logger.warning(f"liteLLM token counting failed: {e}, using fallback")
                 return self._fallback_token_count(text)
@@ -201,7 +201,7 @@ class BudgetManager:
         query_text: str,
         contextual_helper: Optional[str] = None,
         wrapper_text: str = "",
-        chunks_text: List[str] = None,
+        chunks_text: Optional[List[str]] = None,
     ) -> TokenEstimate:
         """
         Estimate token and character usage for budget planning.
@@ -466,7 +466,7 @@ def create_budget_manager(
     max_token_budget: int,
     strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
     model_name: str = "gpt-4",
-    **kwargs,
+    **kwargs: Any,
 ) -> BudgetManager:
     """
     Create a budget manager with default configuration.

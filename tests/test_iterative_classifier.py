@@ -2,27 +2,28 @@
 Tests for iterative classification workflow.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
+from memoir_ai.classification.category_manager import CategoryManager
 from memoir_ai.classification.iterative_classifier import (
-    IterativeClassificationWorkflow,
-    IterativeClassificationResult,
     ClassificationWorkflowMetrics,
+    IterativeClassificationResult,
+    IterativeClassificationWorkflow,
     create_iterative_classifier,
 )
-from memoir_ai.classification.category_manager import CategoryManager
-from memoir_ai.text_processing.chunker import TextChunk
 from memoir_ai.database.models import Category, Chunk
-from memoir_ai.llm.schemas import CategorySelection
 from memoir_ai.exceptions import ClassificationError, ValidationError
+from memoir_ai.llm.schemas import CategorySelection
+from memoir_ai.text_processing.chunker import TextChunk
 
 
 class TestIterativeClassificationResult:
     """Test IterativeClassificationResult data class."""
 
-    def test_iterative_classification_result_success(self):
+    def test_iterative_classification_result_success(self) -> None:
         """Test creating successful classification result."""
         chunk = TextChunk(
             content="test", token_count=5, start_position=0, end_position=4
@@ -51,7 +52,7 @@ class TestIterativeClassificationResult:
         assert result.levels_processed == 2
         assert result.error is None
 
-    def test_iterative_classification_result_failure(self):
+    def test_iterative_classification_result_failure(self) -> None:
         """Test creating failed classification result."""
         chunk = TextChunk(
             content="test", token_count=5, start_position=0, end_position=4
@@ -76,7 +77,7 @@ class TestIterativeClassificationResult:
 class TestClassificationWorkflowMetrics:
     """Test ClassificationWorkflowMetrics data class."""
 
-    def test_workflow_metrics_creation(self):
+    def test_workflow_metrics_creation(self) -> None:
         """Test creating workflow metrics."""
         timestamp = datetime.now()
 
@@ -106,7 +107,7 @@ class TestClassificationWorkflowMetrics:
 class TestIterativeClassificationWorkflow:
     """Test IterativeClassificationWorkflow functionality."""
 
-    def create_mock_session(self):
+    def create_mock_session(self) -> None:
         """Create a mock database session."""
         session = Mock()
         session.add = Mock()
@@ -114,7 +115,7 @@ class TestIterativeClassificationWorkflow:
         session.rollback = Mock()
         return session
 
-    def create_mock_category_manager(self):
+    def create_mock_category_manager(self) -> None:
         """Create a mock category manager."""
         manager = Mock(spec=CategoryManager)
         manager.hierarchy_depth = 3
@@ -122,7 +123,7 @@ class TestIterativeClassificationWorkflow:
         manager.limits.global_limit = 128
         return manager
 
-    def test_workflow_initialization_defaults(self):
+    def test_workflow_initialization_defaults(self) -> None:
         """Test workflow initialization with defaults."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -135,7 +136,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             assert workflow.db_session == session
@@ -146,7 +146,7 @@ class TestIterativeClassificationWorkflow:
             assert workflow.max_retries == 3
             assert workflow.temperature == 0.0
 
-    def test_workflow_initialization_custom(self):
+    def test_workflow_initialization_custom(self) -> None:
         """Test workflow initialization with custom parameters."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -159,7 +159,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(
                 session,
                 category_manager,
@@ -177,7 +176,7 @@ class TestIterativeClassificationWorkflow:
             assert workflow.temperature == 0.7
 
     @pytest.mark.asyncio
-    async def test_classify_chunks_empty(self):
+    async def test_classify_chunks_empty(self) -> None:
         """Test classifying empty chunks list."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -190,7 +189,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             results = await workflow.classify_chunks([], "test context")
@@ -198,7 +196,7 @@ class TestIterativeClassificationWorkflow:
             assert results == []
 
     @pytest.mark.asyncio
-    async def test_classify_single_chunk_success(self):
+    async def test_classify_single_chunk_success(self) -> None:
         """Test successful single chunk classification."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -231,11 +229,12 @@ class TestIterativeClassificationWorkflow:
                 return_value=mock_agent,
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             # Mock _get_or_create_category to return sequential categories
-            async def mock_get_or_create_category(name, level, parent_id, can_create):
+            async def mock_get_or_create_category(
+                name, level, parent_id, can_create
+            ) -> None:
                 return mock_categories[level - 1]
 
             workflow._get_or_create_category = mock_get_or_create_category
@@ -258,7 +257,7 @@ class TestIterativeClassificationWorkflow:
             assert result.levels_processed == 3
 
     @pytest.mark.asyncio
-    async def test_classify_at_level_success(self):
+    async def test_classify_at_level_success(self) -> None:
         """Test successful classification at a specific level."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -280,7 +279,6 @@ class TestIterativeClassificationWorkflow:
                 return_value=mock_agent,
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -297,7 +295,7 @@ class TestIterativeClassificationWorkflow:
             assert result == "Technology"
 
     @pytest.mark.asyncio
-    async def test_classify_at_level_empty_response(self):
+    async def test_classify_at_level_empty_response(self) -> None:
         """Test classification at level with empty LLM response."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -317,7 +315,6 @@ class TestIterativeClassificationWorkflow:
                 return_value=mock_agent,
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -330,7 +327,7 @@ class TestIterativeClassificationWorkflow:
             assert "Empty category response" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_classify_at_level_cannot_create_new(self):
+    async def test_classify_at_level_cannot_create_new(self) -> None:
         """Test classification when cannot create new categories."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -352,7 +349,6 @@ class TestIterativeClassificationWorkflow:
                 return_value=mock_agent,
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -373,7 +369,7 @@ class TestIterativeClassificationWorkflow:
             # Should fallback to first existing category
             assert result == "Technology"
 
-    def test_create_level_prompt_with_existing_categories(self):
+    def test_create_level_prompt_with_existing_categories(self) -> None:
         """Test creating level prompt with existing categories."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -386,7 +382,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -407,7 +402,7 @@ class TestIterativeClassificationWorkflow:
             assert "AI research" in prompt
             assert "select from existing categories when possible" in prompt
 
-    def test_create_level_prompt_no_existing_categories(self):
+    def test_create_level_prompt_no_existing_categories(self) -> None:
         """Test creating level prompt with no existing categories."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -420,7 +415,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -432,7 +426,7 @@ class TestIterativeClassificationWorkflow:
             assert "No existing categories at this level" in prompt
             assert "You may create a new category" in prompt
 
-    def test_create_level_prompt_cannot_create_new(self):
+    def test_create_level_prompt_cannot_create_new(self) -> None:
         """Test creating level prompt when cannot create new categories."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -446,7 +440,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -464,7 +457,7 @@ class TestIterativeClassificationWorkflow:
             assert "MUST select from existing categories only" in prompt
 
     @pytest.mark.asyncio
-    async def test_get_or_create_category_existing(self):
+    async def test_get_or_create_category_existing(self) -> None:
         """Test getting existing category."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -480,7 +473,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             result = await workflow._get_or_create_category("Technology", 1, None, True)
@@ -488,7 +480,7 @@ class TestIterativeClassificationWorkflow:
             assert result == existing_category
 
     @pytest.mark.asyncio
-    async def test_get_or_create_category_create_new(self):
+    async def test_get_or_create_category_create_new(self) -> None:
         """Test creating new category."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -505,7 +497,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             result = await workflow._get_or_create_category(
@@ -518,7 +509,7 @@ class TestIterativeClassificationWorkflow:
             )
 
     @pytest.mark.asyncio
-    async def test_get_or_create_category_cannot_create_fallback(self):
+    async def test_get_or_create_category_cannot_create_fallback(self) -> None:
         """Test fallback to existing category when cannot create new."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -534,7 +525,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             result = await workflow._get_or_create_category(
@@ -544,7 +534,7 @@ class TestIterativeClassificationWorkflow:
             assert result == existing_category
 
     @pytest.mark.asyncio
-    async def test_get_or_create_category_cannot_create_no_existing(self):
+    async def test_get_or_create_category_cannot_create_no_existing(self) -> None:
         """Test error when cannot create new and no existing categories."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -559,7 +549,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             with pytest.raises(ClassificationError) as exc_info:
@@ -568,7 +557,7 @@ class TestIterativeClassificationWorkflow:
             assert "No categories available" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_store_chunk_classification_success(self):
+    async def test_store_chunk_classification_success(self) -> None:
         """Test successful chunk classification storage."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -582,7 +571,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -596,7 +584,7 @@ class TestIterativeClassificationWorkflow:
             session.flush.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_store_chunk_classification_not_leaf(self):
+    async def test_store_chunk_classification_not_leaf(self) -> None:
         """Test storing chunk classification with non-leaf category."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -611,7 +599,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             chunk = TextChunk(
@@ -624,7 +611,7 @@ class TestIterativeClassificationWorkflow:
 
             assert "Can only link chunks to leaf categories" in str(exc_info.value)
 
-    def test_get_workflow_metrics_summary_empty(self):
+    def test_get_workflow_metrics_summary_empty(self) -> None:
         """Test workflow metrics summary with no data."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -637,7 +624,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             summary = workflow.get_workflow_metrics_summary()
@@ -649,7 +635,7 @@ class TestIterativeClassificationWorkflow:
             assert summary["total_llm_calls"] == 0
             assert summary["average_levels_per_chunk"] == 0.0
 
-    def test_get_workflow_metrics_summary_with_data(self):
+    def test_get_workflow_metrics_summary_with_data(self) -> None:
         """Test workflow metrics summary with data."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -662,7 +648,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             # Add sample metrics
@@ -704,7 +689,7 @@ class TestIterativeClassificationWorkflow:
             # Weighted average: (4*2.5 + 3*3.0) / 7 = 19/7 ≈ 2.71
             assert abs(summary["average_levels_per_chunk"] - 19 / 7) < 0.01
 
-    def test_clear_metrics(self):
+    def test_clear_metrics(self) -> None:
         """Test clearing workflow metrics."""
         session = self.create_mock_session()
         category_manager = self.create_mock_category_manager()
@@ -717,7 +702,6 @@ class TestIterativeClassificationWorkflow:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             workflow = IterativeClassificationWorkflow(session, category_manager)
 
             # Add some metrics
@@ -731,7 +715,7 @@ class TestIterativeClassificationWorkflow:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_iterative_classifier(self):
+    def test_create_iterative_classifier(self) -> None:
         """Test iterative classifier creation utility."""
         session = Mock()
         category_manager = Mock()
@@ -744,7 +728,6 @@ class TestUtilityFunctions:
                 "memoir_ai.classification.iterative_classifier.create_classification_agent"
             ),
         ):
-
             classifier = create_iterative_classifier(
                 session,
                 category_manager,

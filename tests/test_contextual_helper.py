@@ -2,20 +2,22 @@
 Tests for contextual helper generation system.
 """
 
-import pytest
 from datetime import datetime
-from memoir_ai.text_processing.contextual_helper import (
-    ContextualHelperGenerator,
-    ContextualHelperData,
-)
-from memoir_ai.text_processing.chunker import TextChunk
+
+import pytest
+
 from memoir_ai.exceptions import ValidationError
+from memoir_ai.text_processing.chunker import TextChunk
+from memoir_ai.text_processing.contextual_helper import (
+    ContextualHelperData,
+    ContextualHelperGenerator,
+)
 
 
 class TestContextualHelperData:
     """Test ContextualHelperData data class."""
 
-    def test_contextual_helper_data_creation(self):
+    def test_contextual_helper_data_creation(self) -> None:
         """Test creating contextual helper data."""
         data = ContextualHelperData(
             author="John Doe",
@@ -33,7 +35,7 @@ class TestContextualHelperData:
         assert data.source_type == "research_paper"
         assert data.title == "Advances in AI"
 
-    def test_contextual_helper_data_defaults(self):
+    def test_contextual_helper_data_defaults(self) -> None:
         """Test contextual helper data with default values."""
         data = ContextualHelperData()
 
@@ -48,7 +50,7 @@ class TestContextualHelperData:
 class TestContextualHelperGenerator:
     """Test ContextualHelperGenerator functionality."""
 
-    def test_generator_initialization_defaults(self):
+    def test_generator_initialization_defaults(self) -> None:
         """Test generator initialization with defaults."""
         generator = ContextualHelperGenerator()
 
@@ -58,7 +60,7 @@ class TestContextualHelperGenerator:
         assert generator.max_chunks_for_derivation == 5
         assert generator.model_name == "gpt-3.5-turbo"
 
-    def test_generator_initialization_custom(self):
+    def test_generator_initialization_custom(self) -> None:
         """Test generator initialization with custom parameters."""
         generator = ContextualHelperGenerator(
             auto_source_identification=False,
@@ -74,7 +76,7 @@ class TestContextualHelperGenerator:
         assert generator.max_chunks_for_derivation == 3
         assert generator.model_name == "gpt-4"
 
-    def test_generator_initialization_validation(self):
+    def test_generator_initialization_validation(self) -> None:
         """Test generator initialization validation."""
         # Test negative max_tokens
         with pytest.raises(ValidationError) as exc_info:
@@ -86,7 +88,7 @@ class TestContextualHelperGenerator:
             ContextualHelperGenerator(derivation_budget_tokens=-1)
         assert "derivation_budget_tokens must be positive" in str(exc_info.value)
 
-    def test_token_counting(self):
+    def test_token_counting(self) -> None:
         """Test token counting functionality."""
         generator = ContextualHelperGenerator()
 
@@ -100,7 +102,7 @@ class TestContextualHelperGenerator:
         assert generator.count_tokens("") == 0
         assert generator.count_tokens("   ") == 0
 
-    def test_iso_date_validation(self):
+    def test_iso_date_validation(self) -> None:
         """Test ISO 8601 date validation."""
         generator = ContextualHelperGenerator()
 
@@ -119,7 +121,7 @@ class TestContextualHelperGenerator:
         assert generator.validate_iso_date("2024-01-32") is False  # Invalid day
         assert generator.validate_iso_date("not-a-date") is False
 
-    def test_extract_title_from_source_id(self):
+    def test_extract_title_from_source_id(self) -> None:
         """Test title extraction from source ID."""
         generator = ContextualHelperGenerator()
 
@@ -147,7 +149,7 @@ class TestContextualHelperGenerator:
         )
         assert generator._extract_title_from_source_id("") is None
 
-    def test_extract_title_from_content(self):
+    def test_extract_title_from_content(self) -> None:
         """Test title extraction from content."""
         generator = ContextualHelperGenerator()
 
@@ -171,7 +173,7 @@ class TestContextualHelperGenerator:
         # Test empty content
         assert generator._extract_title_from_content("") is None
 
-    def test_detect_topic(self):
+    def test_detect_topic(self) -> None:
         """Test topic detection from content."""
         generator = ContextualHelperGenerator()
 
@@ -194,7 +196,7 @@ class TestContextualHelperGenerator:
         topic3 = generator._detect_topic(content3)
         # May or may not detect a topic, depends on implementation
 
-    def test_generate_simple_summary(self):
+    def test_generate_simple_summary(self) -> None:
         """Test simple summary generation."""
         generator = ContextualHelperGenerator()
 
@@ -210,7 +212,7 @@ class TestContextualHelperGenerator:
         assert generator._generate_simple_summary("") is None
         assert generator._generate_simple_summary("   ") is None
 
-    def test_compose_helper_text(self):
+    def test_compose_helper_text(self) -> None:
         """Test helper text composition."""
         generator = ContextualHelperGenerator()
 
@@ -231,7 +233,7 @@ class TestContextualHelperGenerator:
         assert "comprehensive study" in helper_text
         assert helper_text.endswith(".")
 
-    def test_compose_helper_text_partial_data(self):
+    def test_compose_helper_text_partial_data(self) -> None:
         """Test helper text composition with partial data."""
         generator = ContextualHelperGenerator()
 
@@ -243,7 +245,7 @@ class TestContextualHelperGenerator:
         assert "AI" in helper_text
         assert helper_text.endswith(".")
 
-    def test_compose_helper_text_empty_data(self):
+    def test_compose_helper_text_empty_data(self) -> None:
         """Test helper text composition with empty data."""
         generator = ContextualHelperGenerator()
 
@@ -253,7 +255,7 @@ class TestContextualHelperGenerator:
         # Should return fallback text
         assert "Document content for classification" in helper_text
 
-    def test_validate_and_format_helper(self):
+    def test_validate_and_format_helper(self) -> None:
         """Test helper text validation and formatting."""
         generator = ContextualHelperGenerator()
 
@@ -272,7 +274,7 @@ class TestContextualHelperGenerator:
             generator._validate_and_format_helper("")
         assert "cannot be empty" in str(exc_info.value)
 
-    def test_truncate_helper(self):
+    def test_truncate_helper(self) -> None:
         """Test helper text truncation."""
         generator = ContextualHelperGenerator(max_tokens=20)
 
@@ -289,7 +291,7 @@ class TestContextualHelperGenerator:
         assert truncated.endswith(".")
         assert len(truncated) < len(long_text)
 
-    def test_create_user_provided_helper(self):
+    def test_create_user_provided_helper(self) -> None:
         """Test creating helper from user-provided information."""
         generator = ContextualHelperGenerator()
 
@@ -307,7 +309,7 @@ class TestContextualHelperGenerator:
         assert "global warming" in helper
         assert helper.endswith(".")
 
-    def test_create_user_provided_helper_validation(self):
+    def test_create_user_provided_helper_validation(self) -> None:
         """Test user-provided helper validation."""
         generator = ContextualHelperGenerator()
 
@@ -335,7 +337,7 @@ class TestContextualHelperGenerator:
             )
         assert "200 token limit" in str(exc_info.value)
 
-    def test_create_user_provided_helper_unknown_values(self):
+    def test_create_user_provided_helper_unknown_values(self) -> None:
         """Test user-provided helper with unknown values."""
         generator = ContextualHelperGenerator()
 
@@ -352,7 +354,7 @@ class TestContextualHelperGenerator:
         assert "2024-01-01" in helper
         assert "research document" in helper
 
-    def test_auto_generate_helper_with_metadata(self):
+    def test_auto_generate_helper_with_metadata(self) -> None:
         """Test auto-generation with rich metadata."""
         generator = ContextualHelperGenerator()
 
@@ -393,7 +395,7 @@ class TestContextualHelperGenerator:
         token_count = generator.count_tokens(helper)
         assert token_count <= generator.max_tokens
 
-    def test_auto_generate_helper_minimal_data(self):
+    def test_auto_generate_helper_minimal_data(self) -> None:
         """Test auto-generation with minimal data."""
         generator = ContextualHelperGenerator()
 
@@ -418,7 +420,7 @@ class TestContextualHelperGenerator:
         token_count = generator.count_tokens(helper)
         assert token_count <= generator.max_tokens
 
-    def test_generate_helper_with_user_provided(self):
+    def test_generate_helper_with_user_provided(self) -> None:
         """Test generation with user-provided helper."""
         generator = ContextualHelperGenerator()
 
@@ -433,7 +435,7 @@ class TestContextualHelperGenerator:
 
         assert helper == user_helper  # Should keep existing period
 
-    def test_generate_helper_auto_disabled(self):
+    def test_generate_helper_auto_disabled(self) -> None:
         """Test generation when auto identification is disabled."""
         generator = ContextualHelperGenerator(auto_source_identification=False)
 
@@ -444,7 +446,7 @@ class TestContextualHelperGenerator:
             )
         assert "Auto source identification is disabled" in str(exc_info.value)
 
-    def test_generate_helper_empty_source_id(self):
+    def test_generate_helper_empty_source_id(self) -> None:
         """Test generation with empty source ID."""
         generator = ContextualHelperGenerator()
 
@@ -452,7 +454,7 @@ class TestContextualHelperGenerator:
             generator.generate_contextual_helper(source_id="", chunks=[], metadata={})
         assert "source_id cannot be empty" in str(exc_info.value)
 
-    def test_analyze_content_with_budget(self):
+    def test_analyze_content_with_budget(self) -> None:
         """Test content analysis respects token budget."""
         generator = ContextualHelperGenerator(derivation_budget_tokens=50)
 
@@ -477,7 +479,7 @@ class TestContextualHelperGenerator:
         # Should return analysis even with budget constraints
         assert isinstance(analysis, dict)
 
-    def test_helper_generation_edge_cases(self):
+    def test_helper_generation_edge_cases(self) -> None:
         """Test helper generation edge cases."""
         generator = ContextualHelperGenerator()
 

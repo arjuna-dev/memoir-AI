@@ -2,16 +2,19 @@
 Tests for chunk retrieval and result construction.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from memoir_ai.database.models import Category, Chunk
+from memoir_ai.exceptions import DatabaseError
 from memoir_ai.query.chunk_retrieval import (
-    ChunkRetriever,
-    ResultConstructor,
     ChunkResult,
+    ChunkRetriever,
     PathRetrievalResult,
     QueryResult,
+    ResultConstructor,
     create_chunk_retriever,
     create_result_constructor,
 )
@@ -20,14 +23,12 @@ from memoir_ai.query.query_strategy_engine import (
     LLMCallResponse,
     QueryClassificationResult,
 )
-from memoir_ai.database.models import Category, Chunk
-from memoir_ai.exceptions import DatabaseError
 
 
 class TestChunkResult:
     """Test ChunkResult functionality."""
 
-    def test_chunk_result_creation(self):
+    def test_chunk_result_creation(self) -> None:
         """Test ChunkResult creation."""
         now = datetime.now()
 
@@ -54,7 +55,7 @@ class TestChunkResult:
 class TestPathRetrievalResult:
     """Test PathRetrievalResult functionality."""
 
-    def test_path_retrieval_result_success(self):
+    def test_path_retrieval_result_success(self) -> None:
         """Test successful path retrieval result."""
         categories = [
             Category(id=1, name="Technology", level=1),
@@ -88,7 +89,7 @@ class TestPathRetrievalResult:
         assert result.success is True
         assert result.error is None
 
-    def test_path_retrieval_result_failure(self):
+    def test_path_retrieval_result_failure(self) -> None:
         """Test failed path retrieval result."""
         categories = [Category(id=1, name="Technology", level=1)]
         category_path = CategoryPath(path=categories, ranked_relevance=3)
@@ -110,7 +111,7 @@ class TestPathRetrievalResult:
 class TestQueryResult:
     """Test QueryResult functionality."""
 
-    def test_query_result_creation(self):
+    def test_query_result_creation(self) -> None:
         """Test QueryResult creation with all fields."""
         chunks = [
             ChunkResult(
@@ -155,7 +156,7 @@ class TestQueryResult:
 class TestChunkRetriever:
     """Test ChunkRetriever functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.mock_session = Mock()
         self.retriever = ChunkRetriever(session=self.mock_session, default_limit=100)
@@ -167,18 +168,18 @@ class TestChunkRetriever:
             Category(id=3, name="ML", level=3, parent_id=2),
         ]
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test ChunkRetriever initialization."""
         assert self.retriever.session == self.mock_session
         assert self.retriever.default_limit == 100
         assert self.retriever.enable_pagination is True
 
-    def test_retrieve_chunks_for_paths_empty(self):
+    def test_retrieve_chunks_for_paths_empty(self) -> None:
         """Test retrieving chunks for empty path list."""
         results = self.retriever.retrieve_chunks_for_paths([])
         assert results == []
 
-    def test_retrieve_chunks_for_paths_success(self):
+    def test_retrieve_chunks_for_paths_success(self) -> None:
         """Test successful chunk retrieval for paths."""
         # Create category path
         category_path = CategoryPath(path=self.categories, ranked_relevance=5)
@@ -212,7 +213,7 @@ class TestChunkRetriever:
         assert result.chunks[0].text_content == "Test content"
         assert result.chunks[0].category_path == "Technology → AI → ML"
 
-    def test_retrieve_chunks_for_paths_no_chunks(self):
+    def test_retrieve_chunks_for_paths_no_chunks(self) -> None:
         """Test retrieval when no chunks found."""
         category_path = CategoryPath(path=self.categories, ranked_relevance=3)
 
@@ -229,7 +230,7 @@ class TestChunkRetriever:
         assert len(result.chunks) == 0
         assert result.error == "No chunks found in leaf category"
 
-    def test_retrieve_chunks_for_paths_database_error(self):
+    def test_retrieve_chunks_for_paths_database_error(self) -> None:
         """Test handling of database errors during retrieval."""
         category_path = CategoryPath(path=self.categories, ranked_relevance=2)
 
@@ -244,14 +245,14 @@ class TestChunkRetriever:
         assert "Database connection failed" in result.error
         assert len(result.chunks) == 0
 
-    def test_retrieve_chunks_for_single_path_empty_path(self):
+    def test_retrieve_chunks_for_single_path_empty_path(self) -> None:
         """Test retrieving chunks for empty category path."""
         empty_path = CategoryPath(path=[], ranked_relevance=1)
 
         chunks = self.retriever._retrieve_chunks_for_single_path(empty_path)
         assert chunks == []
 
-    def test_get_chunk_count_for_path(self):
+    def test_get_chunk_count_for_path(self) -> None:
         """Test getting chunk count for a path."""
         category_path = CategoryPath(path=self.categories, ranked_relevance=4)
 
@@ -267,7 +268,7 @@ class TestChunkRetriever:
         assert count == 5
         self.mock_session.query.assert_called_once_with(Chunk)
 
-    def test_get_chunk_count_for_path_error(self):
+    def test_get_chunk_count_for_path_error(self) -> None:
         """Test error handling in chunk count."""
         category_path = CategoryPath(path=self.categories, ranked_relevance=2)
 
@@ -281,7 +282,7 @@ class TestChunkRetriever:
 class TestResultConstructor:
     """Test ResultConstructor functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.constructor = ResultConstructor()
 
@@ -312,12 +313,12 @@ class TestResultConstructor:
             ),
         ]
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test ResultConstructor initialization."""
         constructor = ResultConstructor()
         assert constructor is not None
 
-    def test_construct_query_result_basic(self):
+    def test_construct_query_result_basic(self) -> None:
         """Test basic query result construction."""
         path_results = [
             PathRetrievalResult(
@@ -353,7 +354,7 @@ class TestResultConstructor:
         assert result.query_text == "test query"
         assert result.strategy_used == "one_shot"
 
-    def test_construct_query_result_with_failures(self):
+    def test_construct_query_result_with_failures(self) -> None:
         """Test query result construction with failed paths."""
         successful_result = PathRetrievalResult(
             category_path=self.category_path,
@@ -386,7 +387,7 @@ class TestResultConstructor:
         assert result.failed_paths == 1
         assert result.total_latency_ms == 100  # 80 + 20
 
-    def test_construct_query_result_chunk_ordering(self):
+    def test_construct_query_result_chunk_ordering(self) -> None:
         """Test that chunks are properly ordered in result."""
         # Create chunks with different timestamps
         chunk1 = ChunkResult(
@@ -425,7 +426,7 @@ class TestResultConstructor:
         assert result.chunks[0].chunk_id == 1  # Earlier timestamp
         assert result.chunks[1].chunk_id == 2  # Later timestamp
 
-    def test_validate_query_result_valid(self):
+    def test_validate_query_result_valid(self) -> None:
         """Test validation of a valid query result."""
         result = QueryResult(
             chunks=self.chunks,
@@ -448,7 +449,7 @@ class TestResultConstructor:
         errors = self.constructor.validate_query_result(result)
         assert errors == []
 
-    def test_validate_query_result_invalid(self):
+    def test_validate_query_result_invalid(self) -> None:
         """Test validation of an invalid query result."""
         result = QueryResult(
             chunks=self.chunks,
@@ -477,7 +478,7 @@ class TestResultConstructor:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_chunk_retriever(self):
+    def test_create_chunk_retriever(self) -> None:
         """Test create_chunk_retriever function."""
         mock_session = Mock()
 
@@ -487,7 +488,7 @@ class TestUtilityFunctions:
         assert retriever.session == mock_session
         assert retriever.default_limit == 50
 
-    def test_create_result_constructor(self):
+    def test_create_result_constructor(self) -> None:
         """Test create_result_constructor function."""
         constructor = create_result_constructor()
 
@@ -498,18 +499,18 @@ class TestUtilityFunctions:
 class TestChunkRetrievalIntegration:
     """Integration tests for chunk retrieval system."""
 
-    def test_end_to_end_retrieval_workflow(self):
+    def test_end_to_end_retrieval_workflow(self) -> None:
         """Test complete end-to-end retrieval workflow."""
         # This would be a more comprehensive integration test
         # that tests the entire flow with real-like data
         pass
 
-    def test_performance_with_large_datasets(self):
+    def test_performance_with_large_datasets(self) -> None:
         """Test performance with large numbers of chunks."""
         # Test system behavior with many chunks and paths
         pass
 
-    def test_concurrent_retrieval_requests(self):
+    def test_concurrent_retrieval_requests(self) -> None:
         """Test handling of concurrent retrieval requests."""
         # Test thread safety and concurrent access
         pass

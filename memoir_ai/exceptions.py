@@ -14,7 +14,12 @@ class MemoirAIError(Exception):
 class ConfigurationError(MemoirAIError):
     """Raised when configuration parameters are invalid."""
 
-    def __init__(self, message: str, parameter: str = None, suggested_fix: str = None):
+    def __init__(
+        self,
+        message: str,
+        parameter: str | None = None,
+        suggested_fix: str | None = None,
+    ) -> None:
         self.parameter = parameter
         self.suggested_fix = suggested_fix
 
@@ -30,15 +35,24 @@ class ConfigurationError(MemoirAIError):
 class ClassificationError(MemoirAIError):
     """Raised when LLM classification fails."""
 
-    def __init__(self, message: str, chunk_id: int = None, retry_count: int = 0):
+    def __init__(
+        self,
+        message: str,
+        chunk_id: int | None = None,
+        retry_count: int = 0,
+        model: str | None = None,
+    ) -> None:
         self.chunk_id = chunk_id
         self.retry_count = retry_count
+        self.model = model
 
         full_message = f"Classification Error: {message}"
         if chunk_id is not None:
             full_message += f" (Chunk ID: {chunk_id})"
         if retry_count > 0:
             full_message += f" (Retries: {retry_count})"
+        if model:
+            full_message += f" (Model: {model})"
 
         super().__init__(full_message)
 
@@ -46,7 +60,9 @@ class ClassificationError(MemoirAIError):
 class DatabaseError(MemoirAIError):
     """Raised when database operations fail."""
 
-    def __init__(self, message: str, operation: str = None, table: str = None):
+    def __init__(
+        self, message: str, operation: str | None = None, table: str | None = None
+    ) -> None:
         self.operation = operation
         self.table = table
 
@@ -63,8 +79,11 @@ class TokenBudgetError(MemoirAIError):
     """Raised when token budget constraints cannot be met."""
 
     def __init__(
-        self, message: str, required_tokens: int = None, available_tokens: int = None
-    ):
+        self,
+        message: str,
+        required_tokens: int | None = None,
+        available_tokens: int | None = None,
+    ) -> None:
         self.required_tokens = required_tokens
         self.available_tokens = available_tokens
 
@@ -80,7 +99,9 @@ class TokenBudgetError(MemoirAIError):
 class ValidationError(MemoirAIError):
     """Raised when input validation fails."""
 
-    def __init__(self, message: str, field: str = None, value: Any = None):
+    def __init__(
+        self, message: str, field: str | None = None, value: Any = None
+    ) -> None:
         self.field = field
         self.value = value
 
@@ -99,10 +120,10 @@ class LLMError(MemoirAIError):
     def __init__(
         self,
         message: str,
-        model: str = None,
-        error_type: str = None,
+        model: str | None = None,
+        error_type: str | None = None,
         retry_suggested: bool = True,
-    ):
+    ) -> None:
         self.model = model
         self.error_type = error_type
         self.retry_suggested = retry_suggested

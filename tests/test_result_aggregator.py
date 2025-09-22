@@ -2,25 +2,26 @@
 Tests for result aggregator.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 
-from memoir_ai.aggregation.result_aggregator import (
-    ResultAggregator,
-    AggregationResult,
-    create_result_aggregator,
-)
+import pytest
+
 from memoir_ai.aggregation.budget_manager import (
-    BudgetManager,
     BudgetConfig,
-    TokenEstimate,
+    BudgetManager,
     PromptLimitingStrategy,
+    TokenEstimate,
 )
 from memoir_ai.aggregation.pruning_engine import (
     PruningEngine,
     PruningResult,
     PruningStrategy,
+)
+from memoir_ai.aggregation.result_aggregator import (
+    AggregationResult,
+    ResultAggregator,
+    create_result_aggregator,
 )
 from memoir_ai.query.chunk_retrieval import ChunkResult, QueryResult
 from memoir_ai.query.query_strategy_engine import (
@@ -32,7 +33,7 @@ from memoir_ai.query.query_strategy_engine import (
 class TestAggregationResult:
     """Test AggregationResult functionality."""
 
-    def test_aggregation_result_creation(self):
+    def test_aggregation_result_creation(self) -> None:
         """Test AggregationResult creation."""
         now = datetime.now()
 
@@ -76,7 +77,7 @@ class TestAggregationResult:
 class TestResultAggregator:
     """Test ResultAggregator functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         # Create budget manager
         config = BudgetConfig(
@@ -143,12 +144,12 @@ class TestResultAggregator:
             failed_paths=0,
         )
 
-    def test_initialization(self):
+    def test_initialization(self) -> None:
         """Test ResultAggregator initialization."""
         assert self.aggregator.budget_manager == self.budget_manager
         assert self.aggregator.pruning_engine == self.pruning_engine
 
-    def test_initialization_default_pruning_engine(self):
+    def test_initialization_default_pruning_engine(self) -> None:
         """Test ResultAggregator initialization with default pruning engine."""
         aggregator = ResultAggregator(budget_manager=self.budget_manager)
 
@@ -156,7 +157,7 @@ class TestResultAggregator:
         assert aggregator.pruning_engine is not None
         assert isinstance(aggregator.pruning_engine, PruningEngine)
 
-    def test_order_chunks_deterministically(self):
+    def test_order_chunks_deterministically(self) -> None:
         """Test deterministic chunk ordering."""
         # Create chunks with different paths and timestamps
         base_time = datetime.now()
@@ -199,7 +200,7 @@ class TestResultAggregator:
         assert ordered[0].created_at <= ordered[1].created_at
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_within_budget(self):
+    async def test_aggregate_results_within_budget(self) -> None:
         """Test aggregation when results are within budget."""
         # Mock budget manager to return within-budget estimate
         mock_estimate = TokenEstimate(
@@ -228,7 +229,7 @@ class TestResultAggregator:
         assert result.processing_latency_ms > 0
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_over_budget_pruning(self):
+    async def test_aggregate_results_over_budget_pruning(self) -> None:
         """Test aggregation when over budget with pruning strategy."""
         # Mock budget manager to return over-budget estimate
         mock_estimate = TokenEstimate(
@@ -270,7 +271,6 @@ class TestResultAggregator:
                 return_value=(True, 900, "Valid"),
             ),
         ):
-
             result = await self.aggregator.aggregate_results(
                 query_result=self.query_result, query_text="Test query"
             )
@@ -282,7 +282,7 @@ class TestResultAggregator:
         assert result.strategy_used == PromptLimitingStrategy.PRUNE
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_pruning_impossible(self):
+    async def test_aggregate_results_pruning_impossible(self) -> None:
         """Test aggregation when pruning cannot help."""
         # Mock budget manager to return estimate where fixed prompt exceeds budget
         mock_estimate = TokenEstimate(
@@ -312,7 +312,7 @@ class TestResultAggregator:
         )
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_all_chunks_dropped(self):
+    async def test_aggregate_results_all_chunks_dropped(self) -> None:
         """Test aggregation when all chunks are dropped during pruning."""
         mock_estimate = TokenEstimate(
             fixed_prompt_tokens=100,
@@ -347,7 +347,6 @@ class TestResultAggregator:
                 self.pruning_engine, "prune_chunks", return_value=mock_pruning_result
             ),
         ):
-
             result = await self.aggregator.aggregate_results(
                 query_result=self.query_result, query_text="Test query"
             )
@@ -357,7 +356,7 @@ class TestResultAggregator:
         assert "All chunks were dropped" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_summarization_strategy(self):
+    async def test_aggregate_results_summarization_strategy(self) -> None:
         """Test aggregation with summarization strategy (not implemented)."""
         # Create config with summarization strategy
         config = BudgetConfig(
@@ -388,7 +387,7 @@ class TestResultAggregator:
         assert "Summarization strategy not yet implemented" in result.error_message
 
     @pytest.mark.asyncio
-    async def test_aggregate_results_error_handling(self):
+    async def test_aggregate_results_error_handling(self) -> None:
         """Test error handling during aggregation."""
         # Mock budget manager to raise an exception
         with patch.object(
@@ -404,7 +403,7 @@ class TestResultAggregator:
         assert "Aggregation failed: Test error" in result.error_message
         assert result.processing_latency_ms > 0
 
-    def test_construct_final_prompt(self):
+    def test_construct_final_prompt(self) -> None:
         """Test final prompt construction."""
         prompt = self.aggregator._construct_final_prompt(
             query_text="What is AI?",
@@ -422,7 +421,7 @@ class TestResultAggregator:
         assert self.chunks[0].text_content in prompt
         assert self.chunks[1].text_content in prompt
 
-    def test_construct_final_prompt_minimal(self):
+    def test_construct_final_prompt_minimal(self) -> None:
         """Test final prompt construction with minimal inputs."""
         prompt = self.aggregator._construct_final_prompt(
             query_text="Test query", contextual_helper=None, wrapper_text="", chunks=[]
@@ -432,7 +431,7 @@ class TestResultAggregator:
         assert "Context:" not in prompt
         assert "Relevant Content:" not in prompt
 
-    def test_analyze_aggregation_requirements(self):
+    def test_analyze_aggregation_requirements(self) -> None:
         """Test aggregation requirements analysis."""
         analysis = self.aggregator.analyze_aggregation_requirements(
             chunks=self.chunks,
@@ -449,7 +448,7 @@ class TestResultAggregator:
         assert "unique_paths" in analysis["chunk_analysis"]
         assert "ranking_distribution" in analysis["chunk_analysis"]
 
-    def test_analyze_ranking_distribution(self):
+    def test_analyze_ranking_distribution(self) -> None:
         """Test ranking distribution analysis."""
         distribution = self.aggregator._analyze_ranking_distribution(self.chunks)
 
@@ -459,7 +458,7 @@ class TestResultAggregator:
         assert 3 in distribution  # Medium relevance
         assert 1 in distribution  # Low relevance
 
-    def test_get_aggregation_statistics(self):
+    def test_get_aggregation_statistics(self) -> None:
         """Test getting aggregation statistics."""
         stats = self.aggregator.get_aggregation_statistics()
 
@@ -474,7 +473,7 @@ class TestResultAggregator:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_create_result_aggregator(self):
+    def test_create_result_aggregator(self) -> None:
         """Test create_result_aggregator function."""
         aggregator = create_result_aggregator(
             max_token_budget=2000,
@@ -492,7 +491,7 @@ class TestUtilityFunctions:
         assert aggregator.budget_manager.config.model_name == "gpt-3.5-turbo"
         assert aggregator.budget_manager.config.use_rankings is False
 
-    def test_create_result_aggregator_defaults(self):
+    def test_create_result_aggregator_defaults(self) -> None:
         """Test create_result_aggregator with defaults."""
         aggregator = create_result_aggregator(max_token_budget=1500)
 

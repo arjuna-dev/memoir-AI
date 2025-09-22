@@ -2,61 +2,62 @@
 Tests for LLM schemas.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from memoir_ai.llm.schemas import (
-    CategorySelection,
-    BatchClassificationResponse,
-    QueryCategorySelection,
-    ChunkClassificationRequest,
-    SummarizationResponse,
-    ChunkSummary,
-    FinalAnswer,
-    ContextualHelperGeneration,
-    CategoryCreation,
-    CategoryLimitResponse,
-    LLMResponseMetadata,
-    ClassificationResult,
-    SummarizationResult,
-    QueryResult,
-    ValidationResult,
-    LLMError,
-    ModelConfiguration,
-    supports_native_output,
+    ALL_SCHEMAS,
+    ANSWER_SCHEMAS,
     CLASSIFICATION_SCHEMAS,
     SUMMARIZATION_SCHEMAS,
-    ANSWER_SCHEMAS,
-    ALL_SCHEMAS,
+    BatchClassificationResponse,
+    CategoryCreation,
+    CategoryLimitResponse,
+    CategorySelection,
+    ChunkClassificationRequest,
+    ChunkSummary,
+    ClassificationResult,
+    ContextualHelperGeneration,
+    FinalAnswer,
+    LLMError,
+    LLMResponseMetadata,
+    ModelConfiguration,
+    QueryCategorySelection,
+    QueryResult,
+    SummarizationResponse,
+    SummarizationResult,
+    ValidationResult,
+    supports_native_output,
 )
 
 
 class TestClassificationSchemas:
     """Test classification-related schemas."""
 
-    def test_category_selection_valid(self):
+    def test_category_selection_valid(self) -> None:
         """Test valid CategorySelection creation."""
         selection = CategorySelection(category="Machine Learning", ranked_relevance=3)
 
         assert selection.category == "Machine Learning"
         assert selection.ranked_relevance == 3
 
-    def test_category_selection_invalid_relevance(self):
+    def test_category_selection_invalid_relevance(self) -> None:
         """Test CategorySelection with invalid relevance."""
         with pytest.raises(ValidationError) as exc_info:
             CategorySelection(category="Test", ranked_relevance=0)  # Should be >= 1
 
         assert "greater than or equal to 1" in str(exc_info.value)
 
-    def test_chunk_classification_request(self):
+    def test_chunk_classification_request(self) -> None:
         """Test ChunkClassificationRequest creation."""
         request = ChunkClassificationRequest(chunk_id=123, category="Technology")
 
         assert request.chunk_id == 123
         assert request.category == "Technology"
 
-    def test_batch_classification_response(self):
+    def test_batch_classification_response(self) -> None:
         """Test BatchClassificationResponse creation."""
         chunks = [
             ChunkClassificationRequest(chunk_id=1, category="AI"),
@@ -71,7 +72,7 @@ class TestClassificationSchemas:
         assert response.chunks[1].chunk_id == 2
         assert response.chunks[1].category == "ML"
 
-    def test_query_category_selection(self):
+    def test_query_category_selection(self) -> None:
         """Test QueryCategorySelection creation."""
         selection = QueryCategorySelection(category="Research", ranked_relevance=5)
 
@@ -82,7 +83,7 @@ class TestClassificationSchemas:
 class TestSummarizationSchemas:
     """Test summarization-related schemas."""
 
-    def test_chunk_summary(self):
+    def test_chunk_summary(self) -> None:
         """Test ChunkSummary creation."""
         summary = ChunkSummary(
             chunk_id=42, summary="This is a summary of the chunk content."
@@ -91,7 +92,7 @@ class TestSummarizationSchemas:
         assert summary.chunk_id == 42
         assert summary.summary == "This is a summary of the chunk content."
 
-    def test_summarization_response(self):
+    def test_summarization_response(self) -> None:
         """Test SummarizationResponse creation."""
         summaries = [
             ChunkSummary(chunk_id=1, summary="Summary 1"),
@@ -108,7 +109,7 @@ class TestSummarizationSchemas:
 class TestAnswerSchemas:
     """Test answer-related schemas."""
 
-    def test_final_answer(self):
+    def test_final_answer(self) -> None:
         """Test FinalAnswer creation."""
         answer = FinalAnswer(answer="This is the final answer to the user's question.")
 
@@ -118,7 +119,7 @@ class TestAnswerSchemas:
 class TestHelperSchemas:
     """Test helper-related schemas."""
 
-    def test_contextual_helper_generation(self):
+    def test_contextual_helper_generation(self) -> None:
         """Test ContextualHelperGeneration creation."""
         helper = ContextualHelperGeneration(
             helper_text="Document about AI research from 2024.", confidence=0.95
@@ -127,14 +128,14 @@ class TestHelperSchemas:
         assert helper.helper_text == "Document about AI research from 2024."
         assert helper.confidence == 0.95
 
-    def test_contextual_helper_generation_defaults(self):
+    def test_contextual_helper_generation_defaults(self) -> None:
         """Test ContextualHelperGeneration with defaults."""
         helper = ContextualHelperGeneration(helper_text="Simple helper text.")
 
         assert helper.helper_text == "Simple helper text."
         assert helper.confidence == 1.0
 
-    def test_contextual_helper_generation_invalid_confidence(self):
+    def test_contextual_helper_generation_invalid_confidence(self) -> None:
         """Test ContextualHelperGeneration with invalid confidence."""
         with pytest.raises(ValidationError) as exc_info:
             ContextualHelperGeneration(
@@ -143,7 +144,7 @@ class TestHelperSchemas:
 
         assert "less than or equal to 1" in str(exc_info.value)
 
-    def test_category_creation(self):
+    def test_category_creation(self) -> None:
         """Test CategoryCreation creation."""
         creation = CategoryCreation(
             category_name="New Category",
@@ -155,7 +156,7 @@ class TestHelperSchemas:
             creation.justification == "This category is needed for better organization."
         )
 
-    def test_category_limit_response(self):
+    def test_category_limit_response(self) -> None:
         """Test CategoryLimitResponse creation."""
         response = CategoryLimitResponse(
             selected_category="Existing Category",
@@ -169,7 +170,7 @@ class TestHelperSchemas:
 class TestMetadataSchemas:
     """Test metadata and result schemas."""
 
-    def test_llm_response_metadata(self):
+    def test_llm_response_metadata(self) -> None:
         """Test LLMResponseMetadata creation."""
         metadata = LLMResponseMetadata(
             model="openai:gpt-4",
@@ -187,7 +188,7 @@ class TestMetadataSchemas:
         assert metadata.tokens_completion == 50
         assert metadata.temperature == 0.0
 
-    def test_llm_response_metadata_minimal(self):
+    def test_llm_response_metadata_minimal(self) -> None:
         """Test LLMResponseMetadata with minimal fields."""
         metadata = LLMResponseMetadata(
             model="anthropic:claude-3",
@@ -200,7 +201,7 @@ class TestMetadataSchemas:
         assert metadata.tokens_completion is None
         assert metadata.temperature is None
 
-    def test_validation_result(self):
+    def test_validation_result(self) -> None:
         """Test ValidationResult creation."""
         result = ValidationResult(
             is_valid=False, errors=["Error 1", "Error 2"], warnings=["Warning 1"]
@@ -212,7 +213,7 @@ class TestMetadataSchemas:
         assert result.errors[0] == "Error 1"
         assert result.warnings[0] == "Warning 1"
 
-    def test_validation_result_defaults(self):
+    def test_validation_result_defaults(self) -> None:
         """Test ValidationResult with defaults."""
         result = ValidationResult(is_valid=True)
 
@@ -220,7 +221,7 @@ class TestMetadataSchemas:
         assert result.errors == []
         assert result.warnings == []
 
-    def test_llm_error(self):
+    def test_llm_error(self) -> None:
         """Test LLMError creation."""
         error = LLMError(
             error_type="validation",
@@ -232,7 +233,7 @@ class TestMetadataSchemas:
         assert error.message == "Schema validation failed"
         assert error.retry_suggested is False
 
-    def test_llm_error_defaults(self):
+    def test_llm_error_defaults(self) -> None:
         """Test LLMError with defaults."""
         error = LLMError(error_type="timeout", message="Request timed out")
 
@@ -244,7 +245,7 @@ class TestMetadataSchemas:
 class TestConfigurationSchemas:
     """Test configuration schemas."""
 
-    def test_model_configuration(self):
+    def test_model_configuration(self) -> None:
         """Test ModelConfiguration creation."""
         config = ModelConfiguration(
             model_name="openai:gpt-4",
@@ -260,7 +261,7 @@ class TestConfigurationSchemas:
         assert config.timeout == 60
         assert config.retry_attempts == 5
 
-    def test_model_configuration_defaults(self):
+    def test_model_configuration_defaults(self) -> None:
         """Test ModelConfiguration with defaults."""
         config = ModelConfiguration(model_name="test:model")
 
@@ -270,7 +271,7 @@ class TestConfigurationSchemas:
         assert config.timeout == 30
         assert config.retry_attempts == 3
 
-    def test_model_configuration_invalid_temperature(self):
+    def test_model_configuration_invalid_temperature(self) -> None:
         """Test ModelConfiguration with invalid temperature."""
         with pytest.raises(ValidationError) as exc_info:
             ModelConfiguration(
@@ -279,7 +280,7 @@ class TestConfigurationSchemas:
 
         assert "less than or equal to 2" in str(exc_info.value)
 
-    def test_model_configuration_invalid_timeout(self):
+    def test_model_configuration_invalid_timeout(self) -> None:
         """Test ModelConfiguration with invalid timeout."""
         with pytest.raises(ValidationError) as exc_info:
             ModelConfiguration(model_name="test:model", timeout=0)  # Should be >= 1
@@ -290,7 +291,7 @@ class TestConfigurationSchemas:
 class TestResultSchemas:
     """Test combined result schemas."""
 
-    def test_classification_result(self):
+    def test_classification_result(self) -> None:
         """Test ClassificationResult creation."""
         classification = CategorySelection(category="Test", ranked_relevance=1)
         metadata = LLMResponseMetadata(
@@ -307,7 +308,7 @@ class TestResultSchemas:
         assert result.metadata.model == "test:model"
         assert result.validation.is_valid is True
 
-    def test_summarization_result(self):
+    def test_summarization_result(self) -> None:
         """Test SummarizationResult creation."""
         summarization = SummarizationResponse(
             summaries=[ChunkSummary(chunk_id=1, summary="Test summary")]
@@ -326,7 +327,7 @@ class TestResultSchemas:
         assert result.metadata.model == "test:model"
         assert result.validation.is_valid is True
 
-    def test_query_result(self):
+    def test_query_result(self) -> None:
         """Test QueryResult creation."""
         answer = FinalAnswer(answer="Test answer")
         metadata = LLMResponseMetadata(
@@ -345,30 +346,30 @@ class TestResultSchemas:
 class TestUtilityFunctions:
     """Test utility functions."""
 
-    def test_supports_native_output_openai(self):
+    def test_supports_native_output_openai(self) -> None:
         """Test native output support detection for OpenAI."""
         assert supports_native_output("openai:gpt-4") is True
         assert supports_native_output("openai:gpt-3.5-turbo") is True
 
-    def test_supports_native_output_anthropic(self):
+    def test_supports_native_output_anthropic(self) -> None:
         """Test native output support detection for Anthropic."""
         assert supports_native_output("anthropic:claude-3") is False
 
-    def test_supports_native_output_grok(self):
+    def test_supports_native_output_grok(self) -> None:
         """Test native output support detection for Grok."""
         assert supports_native_output("grok:grok-1") is True
 
-    def test_supports_native_output_gemini(self):
+    def test_supports_native_output_gemini(self) -> None:
         """Test native output support detection for Gemini."""
         assert supports_native_output("gemini:gemini-pro") is True
 
-    def test_supports_native_output_invalid(self):
+    def test_supports_native_output_invalid(self) -> None:
         """Test native output support detection for invalid models."""
         assert supports_native_output("") is False
         assert supports_native_output("invalid") is False
         assert supports_native_output("unknown:model") is False
 
-    def test_schema_registries(self):
+    def test_schema_registries(self) -> None:
         """Test schema registries."""
         assert "single" in CLASSIFICATION_SCHEMAS
         assert "batch" in CLASSIFICATION_SCHEMAS
@@ -383,7 +384,7 @@ class TestUtilityFunctions:
         assert "validation" in ALL_SCHEMAS
         assert "error" in ALL_SCHEMAS
 
-    def test_schema_registry_types(self):
+    def test_schema_registry_types(self) -> None:
         """Test schema registry contains correct types."""
         assert CLASSIFICATION_SCHEMAS["single"] == CategorySelection
         assert CLASSIFICATION_SCHEMAS["batch"] == BatchClassificationResponse

@@ -2,24 +2,25 @@
 Tests for SQLAlchemy database models.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from memoir_ai.database.models import (
     Base,
     Category,
+    CategoryLimits,
     Chunk,
     ContextualHelper,
-    CategoryLimits,
 )
 from memoir_ai.exceptions import ValidationError
 
 
 @pytest.fixture
-def db_session():
+def db_session() -> None:
     """Create an in-memory SQLite database for testing."""
     engine = create_engine("sqlite:///:memory:", echo=False)
     Base.metadata.create_all(engine)
@@ -35,7 +36,7 @@ def db_session():
 class TestCategoryModel:
     """Test Category model functionality."""
 
-    def test_create_valid_category(self, db_session):
+    def test_create_valid_category(self, db_session) -> None:
         """Test creating a valid category."""
         category = Category(name="Technology", level=1, parent_id=None)
 
@@ -49,7 +50,7 @@ class TestCategoryModel:
         assert category.created_at is not None
         assert category.updated_at is not None
 
-    def test_category_hierarchy(self, db_session):
+    def test_category_hierarchy(self, db_session) -> None:
         """Test category parent-child relationships."""
         # Create parent category
         parent = Category(name="Technology", level=1, parent_id=None)
@@ -69,7 +70,7 @@ class TestCategoryModel:
         assert child.get_full_path() == ["Technology", "AI/ML"]
         assert child.get_path_string() == "Technology → AI/ML"
 
-    def test_category_level_validation(self, db_session):
+    def test_category_level_validation(self, db_session) -> None:
         """Test category level validation."""
         # Test invalid level (too low)
         with pytest.raises(ValidationError) as exc_info:
@@ -94,7 +95,7 @@ class TestCategoryModel:
         assert category1.level == 1
         assert category100.level == 100
 
-    def test_category_name_validation(self, db_session):
+    def test_category_name_validation(self, db_session) -> None:
         """Test category name validation."""
         # Test empty name
         with pytest.raises(ValidationError) as exc_info:
@@ -110,7 +111,7 @@ class TestCategoryModel:
         category = Category(name="  Technology  ", level=1, parent_id=None)
         assert category.name == "Technology"
 
-    def test_unique_name_per_parent_constraint(self, db_session):
+    def test_unique_name_per_parent_constraint(self, db_session) -> None:
         """Test unique name constraint within same parent."""
         # Create parent
         parent = Category(name="Technology", level=1, parent_id=None)
@@ -129,7 +130,7 @@ class TestCategoryModel:
         with pytest.raises(IntegrityError):
             db_session.commit()
 
-    def test_parent_level_consistency_constraint(self, db_session):
+    def test_parent_level_consistency_constraint(self, db_session) -> None:
         """Test parent-level consistency constraints."""
         # Create parent for testing
         parent = Category(name="Technology", level=1, parent_id=None)
@@ -156,7 +157,7 @@ class TestCategoryModel:
 class TestChunkModel:
     """Test Chunk model functionality."""
 
-    def test_create_valid_chunk(self, db_session):
+    def test_create_valid_chunk(self, db_session) -> None:
         """Test creating a valid chunk."""
         # Create category first
         category = Category(name="Technology", level=1, parent_id=None)
@@ -182,7 +183,7 @@ class TestChunkModel:
         assert chunk.created_at is not None
         assert chunk.category == category
 
-    def test_chunk_content_validation(self, db_session):
+    def test_chunk_content_validation(self, db_session) -> None:
         """Test chunk content validation."""
         # Create category first
         category = Category(name="Technology", level=1, parent_id=None)
@@ -199,7 +200,7 @@ class TestChunkModel:
             Chunk(content="   ", token_count=1, category_id=category.id)
         assert "Chunk content cannot be empty" in str(exc_info.value)
 
-    def test_chunk_token_count_validation(self, db_session):
+    def test_chunk_token_count_validation(self, db_session) -> None:
         """Test chunk token count validation."""
         # Create category first
         category = Category(name="Technology", level=1, parent_id=None)
@@ -216,7 +217,7 @@ class TestChunkModel:
             Chunk(content="Test content", token_count=-1, category_id=category.id)
         assert "Token count must be positive" in str(exc_info.value)
 
-    def test_chunk_category_relationship(self, db_session):
+    def test_chunk_category_relationship(self, db_session) -> None:
         """Test chunk-category relationship."""
         # Create category
         category = Category(name="Technology", level=1, parent_id=None)
@@ -241,7 +242,7 @@ class TestChunkModel:
 class TestContextualHelperModel:
     """Test ContextualHelper model functionality."""
 
-    def test_create_valid_contextual_helper(self, db_session):
+    def test_create_valid_contextual_helper(self, db_session) -> None:
         """Test creating a valid contextual helper."""
         helper = ContextualHelper(
             source_id="test_source_1",
@@ -261,7 +262,7 @@ class TestContextualHelperModel:
         assert helper.version == 1
         assert helper.created_at is not None
 
-    def test_contextual_helper_validation(self, db_session):
+    def test_contextual_helper_validation(self, db_session) -> None:
         """Test contextual helper validation."""
         # Test empty source_id
         with pytest.raises(ValidationError) as exc_info:
@@ -287,7 +288,7 @@ class TestContextualHelperModel:
             )
         assert "Helper token count must not exceed 300" in str(exc_info.value)
 
-    def test_contextual_helper_unique_source_id(self, db_session):
+    def test_contextual_helper_unique_source_id(self, db_session) -> None:
         """Test unique source_id constraint."""
         # Create first helper
         helper1 = ContextualHelper(
@@ -309,7 +310,7 @@ class TestContextualHelperModel:
 class TestCategoryLimitsModel:
     """Test CategoryLimits model functionality."""
 
-    def test_create_valid_category_limits(self, db_session):
+    def test_create_valid_category_limits(self, db_session) -> None:
         """Test creating valid category limits."""
         limits = CategoryLimits(level=1, max_categories=50)
 
@@ -320,7 +321,7 @@ class TestCategoryLimitsModel:
         assert limits.max_categories == 50
         assert limits.created_at is not None
 
-    def test_category_limits_validation(self, db_session):
+    def test_category_limits_validation(self, db_session) -> None:
         """Test category limits validation."""
         # Test invalid level (too low)
         with pytest.raises(ValidationError) as exc_info:
@@ -341,7 +342,7 @@ class TestCategoryLimitsModel:
             CategoryLimits(level=1, max_categories=-1)
         assert "Max categories must be positive" in str(exc_info.value)
 
-    def test_category_limits_unique_level(self, db_session):
+    def test_category_limits_unique_level(self, db_session) -> None:
         """Test unique level constraint."""
         # Create first limit
         limits1 = CategoryLimits(level=1, max_categories=50)

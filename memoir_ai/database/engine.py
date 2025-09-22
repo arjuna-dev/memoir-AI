@@ -1,20 +1,24 @@
-"""
-Database engine and connection management for MemoirAI.
-"""
+"""Database engine and connection management for MemoirAI."""
+
+from __future__ import annotations
 
 import time
-from typing import Optional, Dict, Any
 from contextlib import contextmanager
+from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from typing_extensions import ParamSpec
 
-from .models import Base
-from ..exceptions import DatabaseError
 from ..config import MemoirAIConfig
+from ..exceptions import DatabaseError
+from .models import Base
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 class DatabaseManager:
@@ -24,11 +28,12 @@ class DatabaseManager:
     Handles database initialization, connection pooling, and error recovery.
     """
 
-    def __init__(self, config: MemoirAIConfig):
+    def __init__(self, config: MemoirAIConfig) -> None:
         """Initialize database manager with configuration."""
         self.config = config
         self.engine: Optional[Engine] = None
-        self.SessionLocal: Optional[sessionmaker] = None
+        self.SessionLocal: Optional[sessionmaker[Session]] = None
+        self.initialization_error: Optional[str] = None
 
         # Connection retry settings
         self.max_retries = 3
@@ -37,10 +42,8 @@ class DatabaseManager:
 
         self._initialize_engine()
 
-    def _initialize_engine(self):
+    def _initialize_engine(self) -> None:
         """Initialize SQLAlchemy engine with appropriate settings."""
-        self.initialization_error: Optional[str] = None
-
         try:
             engine_kwargs = self._get_engine_kwargs()
             self.engine = create_engine(self.config.database_url, **engine_kwargs)
@@ -107,8 +110,13 @@ class DatabaseManager:
                 "pool_pre_ping": True,
             }
 
-    def _test_connection(self):
+    def _test_connection(self) -> None:
         """Test database connection."""
+        if not self.engine:
+            raise DatabaseError(
+                "Database engine is not initialized",
+                operation="test_connection",
+            )
         try:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -118,7 +126,7 @@ class DatabaseManager:
                 operation="test_connection",
             )
 
-    def create_tables(self, use_migrations: bool = False):
+    def create_tables(self, use_migrations: bool = False) -> None:
         """
         Create all database tables and indexes.
 
@@ -144,7 +152,7 @@ class DatabaseManager:
                 f"Failed to create database tables: {str(e)}", operation="create_tables"
             )
 
-    def drop_tables(self):
+    def drop_tables(self) -> None:
         """Drop all database tables (for testing/cleanup)."""
         try:
             if not self.engine:
@@ -159,7 +167,7 @@ class DatabaseManager:
             )
 
     @contextmanager
-    def get_session(self):
+    def get_session(self) -> Iterator[Session]:
         """
         Get a database session with automatic cleanup and error handling.
 
@@ -176,7 +184,7 @@ class DatabaseManager:
             )
             raise DatabaseError(detail, operation="get_session")
 
-        session = self.SessionLocal()
+        session: Session = self.SessionLocal()
         try:
             yield session
             session.commit()
@@ -188,7 +196,9 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def execute_with_retry(self, operation_func, *args, **kwargs):
+    def execute_with_retry(
+        self, operation_func: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+    ) -> T:
         """
         Execute database operation with retry logic and exponential backoff.
 
@@ -199,7 +209,7 @@ class DatabaseManager:
         Returns:
             Result of the operation function
         """
-        last_exception = None
+        last_exception: Optional[BaseException] = None
         delay = self.retry_delay
 
         for attempt in range(self.max_retries + 1):
@@ -259,7 +269,7 @@ class DatabaseManager:
                 f"Failed to get table information: {str(e)}", operation="get_table_info"
             )
 
-    def close(self):
+    def close(self) -> None:
         """Close database connections and cleanup resources."""
         if self.engine:
             self.engine.dispose()

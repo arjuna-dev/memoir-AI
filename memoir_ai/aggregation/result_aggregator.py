@@ -6,21 +6,21 @@ management, pruning, and preparation for final LLM prompts.
 """
 
 import logging
-from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
+from ..exceptions import ConfigurationError, ValidationError
 from ..query.chunk_retrieval import ChunkResult, QueryResult
 from ..query.query_strategy_engine import CategoryPath
 from .budget_manager import (
-    BudgetManager,
     BudgetConfig,
-    TokenEstimate,
+    BudgetManager,
     PromptLimitingStrategy,
+    TokenEstimate,
 )
 from .pruning_engine import PruningEngine, PruningResult, PruningStrategy
-from ..exceptions import ValidationError, ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class ResultAggregator:
         self,
         budget_manager: BudgetManager,
         pruning_engine: Optional[PruningEngine] = None,
-    ):
+    ) -> None:
         """
         Initialize result aggregator.
 
@@ -269,9 +269,11 @@ class ResultAggregator:
         )
 
         # Validate final prompt is within budget
-        is_valid, final_token_count, validation_message = (
-            self.budget_manager.validate_final_prompt(final_prompt)
-        )
+        (
+            is_valid,
+            final_token_count,
+            validation_message,
+        ) = self.budget_manager.validate_final_prompt(final_prompt)
 
         if not is_valid:
             return AggregationResult(
@@ -420,7 +422,7 @@ class ResultAggregator:
             },
             "chunk_analysis": {
                 "total_chunks": len(chunks),
-            "unique_paths": len(set(chunk.category_path for chunk in chunks)),
+                "unique_paths": len(set(chunk.category_path for chunk in chunks)),
                 "ranking_distribution": self._analyze_ranking_distribution(chunks),
             },
             "pruning_analysis": pruning_analysis,
@@ -431,7 +433,7 @@ class ResultAggregator:
         self, chunks: List[ChunkResult]
     ) -> Dict[int, int]:
         """Analyze the distribution of ranking scores in chunks."""
-        distribution = {}
+        distribution: Dict[int, int] = {}
         for chunk in chunks:
             rank = chunk.ranked_relevance
             distribution[rank] = distribution.get(rank, 0) + 1
@@ -464,7 +466,7 @@ def create_result_aggregator(
     strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
     model_name: str = "gpt-4",
     use_rankings: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> ResultAggregator:
     """
     Create a result aggregator with default configuration.

@@ -3,8 +3,9 @@ Text chunker usage example for MemoirAI library.
 """
 
 import asyncio
-from memoir_ai.text_processing import TextChunker, TextChunk
+
 from memoir_ai.exceptions import ValidationError
+from memoir_ai.text_processing import TextChunk, TextChunker
 
 
 async def main():

@@ -11,15 +11,15 @@ from typing import List
 from unittest.mock import Mock
 
 from memoir_ai.classification import (
-    CategoryManager,
     CategoryLimitConfig,
+    CategoryManager,
     IterativeClassificationWorkflow,
     create_category_manager,
     create_iterative_classifier,
     validate_hierarchy_depth,
 )
-from memoir_ai.text_processing.chunker import TextChunk
 from memoir_ai.database.models import Category
+from memoir_ai.text_processing.chunker import TextChunk
 
 
 def create_sample_chunks() -> List[TextChunk]:

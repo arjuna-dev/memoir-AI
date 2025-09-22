@@ -24,6 +24,31 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 files = ["memoir_ai"]
 
+[[tool.mypy.overrides]]
+module = [
+    "pydantic",
+    "pydantic.*",
+    "pydantic_ai",
+    "pydantic_ai.*",
+    "sqlalchemy",
+    "sqlalchemy.*",
+    "alembic",
+    "alembic.*",
+    "litellm",
+    "litellm.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "memoir_ai.database.connection",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*", "examples.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

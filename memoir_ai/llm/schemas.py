@@ -6,7 +6,8 @@ in the MemoirAI system, including classification, summarization, and
 query responses.
 """
 
-from typing import List, Dict, Union, Optional, Literal
+from typing import Dict, List, Literal, Optional, Union
+
 from pydantic import BaseModel, Field
 
 

@@ -6,35 +6,34 @@ integrating all components for text ingestion and retrieval.
 """
 
 import logging
-from typing import List, Dict, Optional, Any, Union
 from dataclasses import dataclass, field
 from datetime import datetime
+from types import TracebackType
+from typing import Any, Dict, List, Optional, Union
 
 from sqlalchemy.orm import Session
 
+from .classification.category_manager import CategoryManager
 from .database.engine import DatabaseManager
 from .database.models import Category, Chunk, ContextualHelper
-from .text_processing.chunker import TextChunker, TextChunk
-from .classification.category_manager import CategoryManager
+from .text_processing.chunker import TextChunk, TextChunker
 
 # Import the implemented iterative classification workflow.
 try:  # pragma: no cover - defensive import guard
-    from .classification.iterative_classifier import (
-        IterativeClassificationWorkflow,
-    )
+    from .classification.iterative_classifier import IterativeClassificationWorkflow
 except Exception:  # Fallback if something goes wrong unexpectedly
     IterativeClassificationWorkflow = None  # type: ignore
-from .query.query_processor import QueryProcessor, process_natural_language_query
-from .query.query_strategy_engine import QueryStrategy
-from .aggregation.result_aggregator import ResultAggregator, PromptLimitingStrategy
+from .aggregation.result_aggregator import PromptLimitingStrategy, ResultAggregator
 from .config import MemoirAIConfig
 from .exceptions import (
-    ConfigurationError,
-    ValidationError,
-    DatabaseError,
     ClassificationError,
+    ConfigurationError,
+    DatabaseError,
     MemoirAIError,
+    ValidationError,
 )
+from .query.query_processor import QueryProcessor, process_natural_language_query
+from .query.query_strategy_engine import QueryStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +109,8 @@ class MemoirAI:
         auto_source_identification: bool = True,
         max_token_budget: int = 4000,
         prompt_limiting_strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize MemoirAI with configuration parameters.
 
@@ -159,7 +158,6 @@ class MemoirAI:
             max_token_budget=self.max_token_budget,
         )
         self.db_manager = DatabaseManager(self.db_config)
-        self.db_manager.initialize()
 
         # Initialize components
         self._initialize_components()
@@ -168,7 +166,7 @@ class MemoirAI:
             f"MemoirAI initialized with model {model_name}, hierarchy depth {hierarchy_depth}"
         )
 
-    def _validate_configuration(self):
+    def _validate_configuration(self) -> None:
         """Validate configuration parameters."""
         errors = []
 
@@ -220,7 +218,7 @@ class MemoirAI:
             )
             raise ConfigurationError(error_message)
 
-    def _initialize_components(self):
+    def _initialize_components(self) -> None:
         """Initialize all internal components."""
         try:
             # Get database session
@@ -233,18 +231,15 @@ class MemoirAI:
                 )
 
                 # Initialize category manager
-                category_limits = self.max_categories_per_level
-                if isinstance(category_limits, int):
-                    category_limits = None  # Use global limit
-
                 self.category_manager = CategoryManager(
                     db_session=session,
                     hierarchy_depth=self.hierarchy_depth,
-                    category_limits=category_limits,
+                    category_limits=self.max_categories_per_level,
                 )
 
                 # Initialize iterative classification workflow (requirement 5.2)
-                if IterativeClassificationWorkflow:
+                self.iterative_classifier: Optional[IterativeClassificationWorkflow]
+                if IterativeClassificationWorkflow is not None:
                     self.iterative_classifier = IterativeClassificationWorkflow(
                         session,
                         self.category_manager,
@@ -525,7 +520,7 @@ class MemoirAI:
                 total_latency_ms = int((end_time - start_time).total_seconds() * 1000)
 
                 # Construct response
-                response = {
+                response: Dict[str, Any] = {
                     "success": True,
                     "query": query_text,
                     "strategy": strategy.value,
@@ -612,7 +607,7 @@ class MemoirAI:
                 stats = self.category_manager.get_category_stats()
 
                 # Get all categories organized by level
-                categories_by_level = {}
+                categories_by_level: Dict[int, List[Dict[str, Any]]] = {}
                 for level in range(1, self.hierarchy_depth + 1):
                     level_categories = self.category_manager.get_existing_categories(
                         level
@@ -634,11 +629,13 @@ class MemoirAI:
                         ]
 
                 # Build hierarchical structure
-                def build_hierarchy(parent_id=None, level=1):
+                def build_hierarchy(
+                    parent_id: Optional[int] = None, level: int = 1
+                ) -> List[Dict[str, Any]]:
                     if level > self.hierarchy_depth or level not in categories_by_level:
                         return []
 
-                    result = []
+                    result: List[Dict[str, Any]] = []
                     for cat in categories_by_level[level]:
                         if cat["parent_id"] == parent_id:
                             cat_with_children = cat.copy()
@@ -741,7 +738,7 @@ class MemoirAI:
         try:
             with self.db_manager.get_session() as session:
                 # Get database info
-                db_info = self.db_manager.get_database_info()
+                db_info = self.db_manager.get_table_info()
 
                 # Get category statistics
                 category_stats = self.category_manager.get_category_stats()
@@ -782,7 +779,7 @@ class MemoirAI:
                 },
             }
 
-    def close(self):
+    def close(self) -> None:
         """Close database connections and cleanup resources."""
         try:
             if hasattr(self, "db_manager") and self.db_manager:
@@ -791,18 +788,26 @@ class MemoirAI:
         except Exception as e:
             logger.error(f"Error closing MemoirAI instance: {e}")
 
-    def __enter__(self):
+    def __enter__(self) -> "MemoirAI":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
         """Context manager exit."""
         self.close()
 
 
 # Utility functions for easy initialization
 def create_memoir_ai(
-    database_url: str, model_name: str = "gpt-4", hierarchy_depth: int = 3, **kwargs
+    database_url: str,
+    model_name: str = "gpt-4",
+    hierarchy_depth: int = 3,
+    **kwargs: Any,
 ) -> MemoirAI:
     """
     Create a MemoirAI instance with simplified configuration.
