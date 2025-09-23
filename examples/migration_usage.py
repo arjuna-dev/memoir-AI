@@ -141,7 +141,7 @@ async def main():
         memoir = MemoirAI(database_url=f"sqlite:///{db_path}")
 
         # The MemoirAI class should work with the existing database
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             categories = session.query(Category).all()
             print(f"   MemoirAI can access {len(categories)} existing categories")
 

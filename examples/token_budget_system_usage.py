@@ -290,19 +290,19 @@ def demonstrate_configuration_options():
     # Different budget configurations
     configs = [
         BudgetConfig(
-            max_token_budget=2000,
+            max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
             use_rankings=True,
             model_name="gpt-4",
         ),
         BudgetConfig(
-            max_token_budget=2000,
+            max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
             use_rankings=False,  # Deterministic order only
             model_name="gpt-3.5-turbo",
         ),
         BudgetConfig(
-            max_token_budget=2000,
+            max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.SUMMARIZE,
             summarization_instruction_headroom_tokens=500,
             summary_char_overage_tolerance_percent=10,

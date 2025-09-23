@@ -33,7 +33,7 @@ class MemoirAIConfig:
     auto_source_identification: bool = True
 
     # Query settings
-    max_token_budget: int = 4000
+    max_token_budget: int = 40000
 
     # Additional settings
     extra_config: Dict[str, Any] = field(default_factory=dict)

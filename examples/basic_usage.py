@@ -25,7 +25,7 @@ async def main():
             chunk_min_tokens=300,
             chunk_max_tokens=500,
             batch_size=5,
-            max_token_budget=4000,
+            max_token_budget=40000,
         )
         print("✅ MemoirAI instance created successfully!")
         print(f"   Database: {memoir.config.database_url}")

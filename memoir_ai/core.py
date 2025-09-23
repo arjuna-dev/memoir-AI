@@ -107,7 +107,7 @@ class MemoirAI:
         batch_size: int = 5,
         max_categories_per_level: Union[int, Dict[int, int]] = 128,
         auto_source_identification: bool = True,
-        max_token_budget: int = 4000,
+        max_token_budget: int = 40000,
         prompt_limiting_strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
         **kwargs: Any,
     ) -> None:
@@ -145,7 +145,7 @@ class MemoirAI:
         self._validate_configuration()
 
         # Initialize database configuration (uses comprehensive validation)
-        self.db_config = MemoirAIConfig(
+        self.config = MemoirAIConfig(
             database_url=database_url,
             llm_provider=self.llm_provider,
             model_name=self.model_name,
@@ -157,7 +157,7 @@ class MemoirAI:
             auto_source_identification=self.auto_source_identification,
             max_token_budget=self.max_token_budget,
         )
-        self.db_manager = DatabaseManager(self.db_config)
+        self.db_manager = DatabaseManager(self.config)
 
         # Initialize components
         self._initialize_components()

@@ -34,7 +34,7 @@ async def main():
             chunk_max_tokens=40,
             batch_size=5,
             max_categories_per_level=50,
-            max_token_budget=2000,
+            max_token_budget=40000,
         )
 
         print("✅ MemoirAI initialized successfully!")
@@ -104,7 +104,7 @@ async def main():
         print("\n4. 💾 Database storage simulation...")
 
         # Create category hierarchy manually (simulating what classification would do)
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             # Create categories
             tech_category = Category(name="Technology", level=1, parent_id=None)
             session.add(tech_category)
@@ -146,7 +146,7 @@ async def main():
         # Step 5: Verify data persistence and retrieval
         print("\n5. 🔍 Verifying data persistence and retrieval...")
 
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             # Retrieve categories
             categories = session.query(Category).all()
             print(f"   Categories in database: {len(categories)}")

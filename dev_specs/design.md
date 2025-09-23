@@ -102,7 +102,7 @@ class MemoirAI:
         strategy: QueryStrategy = QueryStrategy.ONE_SHOT,
         strategy_params: Optional[Dict] = None,
         prompt_limiting_strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
-        max_token_budget: int = 4000,
+        max_token_budget: int = 40000,
         use_rankings: bool = True,
         limit: int = 10
     ) -> QueryResult:
