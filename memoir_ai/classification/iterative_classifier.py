@@ -72,7 +72,7 @@ class IterativeClassificationWorkflow:
         self,
         db_session: Session,
         category_manager: CategoryManager,
-        model_name: str = "openai:gpt-4",
+        model_name: str = "openai:gpt-4o-mini",
         use_batch_processing: bool = True,
         batch_size: int = 5,
         max_retries: int = 3,
@@ -621,7 +621,7 @@ Provide only the category name."""
 def create_iterative_classifier(
     db_session: Session,
     category_manager: CategoryManager,
-    model_name: str = "openai:gpt-4",
+    model_name: str = "openai:gpt-4o-mini",
     **kwargs: Any,
 ) -> IterativeClassificationWorkflow:
     """

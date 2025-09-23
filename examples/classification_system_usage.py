@@ -240,7 +240,7 @@ async def demonstrate_iterative_classification():
     try:
         # This would normally require proper LLM API setup
         print("   Creating workflow (requires LLM API configuration)...")
-        print("   Model: openai:gpt-4")
+        print("   Model: openai:gpt-4o-mini")
         print("   Hierarchy depth: 3")
         print("   Batch processing: enabled")
         print("   Batch size: 5")

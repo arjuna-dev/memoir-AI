@@ -18,7 +18,7 @@ class MemoirAIConfig:
 
     # LLM settings
     llm_provider: str = "openai"
-    model_name: str = "gpt-4"
+    model_name: str = "gpt-4o-mini"
 
     # Hierarchy settings
     hierarchy_depth: int = 3
@@ -182,7 +182,7 @@ class MemoirAIConfig:
             raise ConfigurationError(
                 "model_name cannot be empty",
                 parameter="model_name",
-                suggested_fix="Specify a model name (e.g., 'gpt-4', 'claude-3-sonnet')",
+                suggested_fix="Specify a model name (e.g., 'gpt-4o-mini', 'claude-3-sonnet')",
             )
 
     def _load_environment_variables(self) -> None:

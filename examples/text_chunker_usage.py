@@ -138,7 +138,7 @@ async def main():
         "This is a test sentence for comparing token counts across different models."
     )
 
-    models = ["gpt-3.5-turbo", "gpt-4", "claude-3-sonnet"]
+    models = ["gpt-3.5-turbo", "gpt-4o-mini", "claude-3-sonnet"]
 
     for model in models:
         try:

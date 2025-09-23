@@ -39,7 +39,7 @@ class TestBatchCategoryClassifier:
         ):
             classifier = BatchCategoryClassifier()
 
-            assert classifier.model_name == "openai:gpt-4"
+            assert classifier.model_name == "openai:gpt-4o-mini"
             assert classifier.batch_size == 5
             assert classifier.max_retries == 3
             assert classifier.hierarchy_depth == 3

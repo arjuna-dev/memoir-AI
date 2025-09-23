@@ -201,7 +201,7 @@ from pydantic_ai import Agent, NativeOutput
 from tool_output import Fruit, Vehicle
 
 agent = Agent(
-'openai:gpt-4o',
+'openai:gpt-4o-mini',
 output_type=NativeOutput(
 [Fruit, Vehicle],
 name='Fruit_or_vehicle',

@@ -95,7 +95,9 @@ class QueryStrategyEngine:
     """Engine for executing category traversal strategies."""
 
     def __init__(
-        self, category_manager: "CategoryManager", model_name: str = "openai:gpt-4"
+        self,
+        category_manager: "CategoryManager",
+        model_name: str = "openai:gpt-4o-mini",
     ) -> None:
         self.category_manager = category_manager
         self.model_name = model_name

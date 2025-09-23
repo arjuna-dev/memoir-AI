@@ -42,7 +42,7 @@ class TestAgentFactory:
         """Test AgentFactory initialization with defaults."""
         factory = AgentFactory()
 
-        assert factory.default_config.model_name == "openai:gpt-4"
+        assert factory.default_config.model_name == "openai:gpt-4o-mini"
         assert factory.default_config.temperature == 0.0
         assert factory.default_config.timeout == 30
         assert factory.default_config.retry_attempts == 3
@@ -223,10 +223,10 @@ class TestAgentFactory:
         mock_agent_class.return_value = mock_agent
 
         factory = AgentFactory()
-        agent = factory.create_classification_agent(model_name="openai:gpt-4")
+        agent = factory.create_classification_agent(model_name="openai:gpt-4o-mini")
 
         assert agent == mock_agent
-        mock_supports.assert_called_once_with("openai:gpt-4")
+        mock_supports.assert_called_once_with("openai:gpt-4o-mini")
         mock_native_output.assert_called_once()
 
         # Check that NativeOutput was used
@@ -380,7 +380,7 @@ class TestValidationFunctions:
 
     def test_validate_model_name_valid(self) -> None:
         """Test valid model name validation."""
-        assert validate_model_name("openai:gpt-4") is True
+        assert validate_model_name("openai:gpt-4o-mini") is True
         assert validate_model_name("anthropic:claude-3") is True
         assert validate_model_name("provider:model-name") is True
 
@@ -465,12 +465,12 @@ class TestAgentFactoryIntegration:
         factory = AgentFactory()
 
         # Create agents with different models
-        agent1 = factory.create_classification_agent("openai:gpt-4")
+        agent1 = factory.create_classification_agent("openai:gpt-4o-mini")
         agent2 = factory.create_classification_agent("anthropic:claude-3")
 
         # Create agents with different temperatures
-        config1 = ModelConfiguration(model_name="openai:gpt-4", temperature=0.0)
-        config2 = ModelConfiguration(model_name="openai:gpt-4", temperature=0.5)
+        config1 = ModelConfiguration(model_name="openai:gpt-4o-mini", temperature=0.0)
+        config2 = ModelConfiguration(model_name="openai:gpt-4o-mini", temperature=0.5)
 
         agent3 = factory.create_classification_agent(config=config1)
         agent4 = factory.create_classification_agent(config=config2)

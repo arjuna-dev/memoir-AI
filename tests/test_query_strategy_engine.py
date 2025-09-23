@@ -120,11 +120,12 @@ class TestQueryStrategyEngine:
         """Test QueryStrategyEngine initialization."""
         with patch("memoir_ai.query.query_strategy_engine.Agent"):
             engine = QueryStrategyEngine(
-                category_manager=self.mock_category_manager, model_name="openai:gpt-4"
+                category_manager=self.mock_category_manager,
+                model_name="openai:gpt-4o-mini",
             )
 
             assert engine.category_manager == self.mock_category_manager
-            assert engine.model_name == "openai:gpt-4"
+            assert engine.model_name == "openai:gpt-4o-mini"
             assert engine.session == self.mock_category_manager.db_session
 
     @pytest.mark.asyncio

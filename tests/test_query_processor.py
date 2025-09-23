@@ -41,7 +41,7 @@ class TestQueryProcessor:
         self.processor = QueryProcessor(
             category_manager=self.mock_category_manager,
             session=self.mock_session,
-            model_name="openai:gpt-4",
+            model_name="openai:gpt-4o-mini",
             default_chunk_limit=100,
         )
 
@@ -58,7 +58,7 @@ class TestQueryProcessor:
         """Test QueryProcessor initialization."""
         assert self.processor.category_manager == self.mock_category_manager
         assert self.processor.session == self.mock_session
-        assert self.processor.model_name == "openai:gpt-4"
+        assert self.processor.model_name == "openai:gpt-4o-mini"
         assert self.processor.default_chunk_limit == 100
 
         # Check that components are initialized
@@ -250,7 +250,7 @@ class TestQueryProcessor:
         """Test getting query statistics."""
         stats = self.processor.get_query_statistics()
 
-        assert stats["model_name"] == "openai:gpt-4"
+        assert stats["model_name"] == "openai:gpt-4o-mini"
         assert stats["default_chunk_limit"] == 100
         assert stats["hierarchy_depth"] == 3
         assert "available_strategies" in stats

@@ -70,7 +70,7 @@ class BatchCategoryClassifier:
 
     def __init__(
         self,
-        model_name: str = "openai:gpt-4",
+        model_name: str = "openai:gpt-4o-mini",
         batch_size: int = 5,
         max_retries: int = 3,
         hierarchy_depth: int = 3,
@@ -602,7 +602,7 @@ Provide the category name only."""
 
 # Utility functions for batch processing
 def create_batch_classifier(
-    model_name: str = "openai:gpt-4", batch_size: int = 5, **kwargs: Any
+    model_name: str = "openai:gpt-4o-mini", batch_size: int = 5, **kwargs: Any
 ) -> BatchCategoryClassifier:
     """
     Create a batch category classifier with default configuration.

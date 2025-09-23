@@ -101,7 +101,7 @@ def demonstrate_schemas():
     print("-" * 27)
 
     metadata = LLMResponseMetadata(
-        model="openai:gpt-4",
+        model="openai:gpt-4o-mini",
         timestamp="2024-01-01T10:00:00Z",
         latency_ms=1500,
         tokens_prompt=100,
@@ -137,7 +137,7 @@ def demonstrate_model_configuration():
     print("=== Model Configuration ===\n")
 
     # Default configuration
-    default_config = ModelConfiguration(model_name="openai:gpt-4")
+    default_config = ModelConfiguration(model_name="openai:gpt-4o-mini")
     print(f"Default config: {default_config.model_dump_json()}")
 
     # Custom configuration
@@ -157,7 +157,7 @@ def demonstrate_native_output_support():
     print("=== Native Output Support Detection ===\n")
 
     test_models = [
-        "openai:gpt-4",
+        "openai:gpt-4o-mini",
         "openai:gpt-3.5-turbo",
         "anthropic:claude-3",
         "grok:grok-1",
@@ -178,7 +178,7 @@ def demonstrate_model_validation():
     print("=== Model Name Validation ===\n")
 
     test_names = [
-        "openai:gpt-4",
+        "openai:gpt-4o-mini",
         "anthropic:claude-3",
         "provider:model-name",
         "invalid-name",

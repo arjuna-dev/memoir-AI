@@ -90,7 +90,7 @@ class TestClassificationWorkflowMetrics:
             total_llm_calls=24,
             average_levels_per_chunk=2.4,
             timestamp=timestamp,
-            model_name="openai:gpt-4",
+            model_name="openai:gpt-4o-mini",
         )
 
         assert metrics.workflow_id == "test_workflow"
@@ -101,7 +101,7 @@ class TestClassificationWorkflowMetrics:
         assert metrics.total_llm_calls == 24
         assert metrics.average_levels_per_chunk == 2.4
         assert metrics.timestamp == timestamp
-        assert metrics.model_name == "openai:gpt-4"
+        assert metrics.model_name == "openai:gpt-4o-mini"
 
 
 class TestIterativeClassificationWorkflow:
@@ -140,7 +140,7 @@ class TestIterativeClassificationWorkflow:
 
             assert workflow.db_session == session
             assert workflow.category_manager == category_manager
-            assert workflow.model_name == "openai:gpt-4"
+            assert workflow.model_name == "openai:gpt-4o-mini"
             assert workflow.use_batch_processing is True
             assert workflow.batch_size == 5
             assert workflow.max_retries == 3
@@ -661,7 +661,7 @@ class TestIterativeClassificationWorkflow:
                     total_llm_calls=12,
                     average_levels_per_chunk=2.5,
                     timestamp=datetime.now(),
-                    model_name="openai:gpt-4",
+                    model_name="openai:gpt-4o-mini",
                 ),
                 ClassificationWorkflowMetrics(
                     workflow_id="workflow2",
@@ -672,7 +672,7 @@ class TestIterativeClassificationWorkflow:
                     total_llm_calls=9,
                     average_levels_per_chunk=3.0,
                     timestamp=datetime.now(),
-                    model_name="openai:gpt-4",
+                    model_name="openai:gpt-4o-mini",
                 ),
             ]
 

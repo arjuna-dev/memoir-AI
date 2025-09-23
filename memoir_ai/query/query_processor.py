@@ -39,7 +39,7 @@ class QueryProcessor:
         self,
         category_manager: CategoryManager,
         session: Session,
-        model_name: str = "openai:gpt-4",
+        model_name: str = "openai:gpt-4o-mini",
         default_chunk_limit: Optional[int] = 100,
     ) -> None:
         """
@@ -223,7 +223,7 @@ class QueryProcessor:
 def create_query_processor(
     category_manager: CategoryManager,
     session: Session,
-    model_name: str = "openai:gpt-4",
+    model_name: str = "openai:gpt-4o-mini",
     **kwargs: Any,
 ) -> QueryProcessor:
     """

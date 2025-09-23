@@ -90,7 +90,7 @@ All requirements from **Requirement 5** are fully implemented:
 
 The system automatically detects and uses native structured outputs for:
 
-- **OpenAI models**: gpt-4, gpt-3.5-turbo, etc.
+- **OpenAI models**: o, gpt-3.5-turbo, etc.
 - **Grok models**: grok-1, etc.
 - **Gemini models**: gemini-pro, etc.
 
@@ -139,7 +139,7 @@ The implementation provides simple, intuitive APIs:
 from memoir_ai.llm import create_classification_agent, CategorySelection
 
 # Create agent with native output support
-agent = create_classification_agent("openai:gpt-4")
+agent = create_classification_agent("openai:gpt-4o-mini")
 
 # Schemas automatically validate responses
 selection = CategorySelection(category="AI", ranked_relevance=5)

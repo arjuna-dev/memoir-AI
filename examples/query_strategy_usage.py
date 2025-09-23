@@ -24,7 +24,9 @@ async def main():
     # Create a query strategy engine
     # In a real application, this would use your actual database
     engine = create_query_strategy_engine(
-        max_depth=3, model_name="openai:gpt-4", category_limits={1: 20, 2: 50, 3: 100}
+        max_depth=3,
+        model_name="openai:gpt-4o-mini",
+        category_limits={1: 20, 2: 50, 3: 100},
     )
 
     print("Created QueryStrategyEngine with:")

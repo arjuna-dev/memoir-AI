@@ -79,7 +79,7 @@ class MemoirAI:
         hierarchy_depth: int = 3,
         chunk_min_tokens: int = 300,
         chunk_max_tokens: int = 500,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-4o-mini",
         batch_size: int = 5,
         max_categories_per_level: Union[int, Dict[int, int]] = 128,
         auto_source_identification: bool = True,
@@ -127,7 +127,7 @@ class TextChunker:
         min_tokens: int = 300,
         max_tokens: int = 500,
         delimiters: List[str] = [".", "\n"],
-        model_name: str = "gpt-4"
+        model_name: str = "gpt-4o-mini"
     ):
         """Initialize chunker with token-based size constraints and delimiters."""
         self.min_tokens = min_tokens
@@ -335,7 +335,7 @@ class ResultAggregator:
         self,
         prompt_limiting_strategy: PromptLimitingStrategy,
         max_token_budget: int,
-        model_name: str = "gpt-4"
+        model_name: str = "gpt-4o-mini"
     ):
         """Initialize result aggregator with budget and strategy configuration."""
 

@@ -39,7 +39,7 @@ class BudgetConfig:
     # Core budget settings
     max_token_budget: int
     prompt_limiting_strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE
-    model_name: str = "gpt-4"
+    model_name: str = "gpt-4o-mini"
 
     # Pruning settings
     use_rankings: bool = True
@@ -465,7 +465,7 @@ class BudgetManager:
 def create_budget_manager(
     max_token_budget: int,
     strategy: PromptLimitingStrategy = PromptLimitingStrategy.PRUNE,
-    model_name: str = "gpt-4",
+    model_name: str = "gpt-4o-mini",
     **kwargs: Any,
 ) -> BudgetManager:
     """
