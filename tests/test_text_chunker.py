@@ -100,7 +100,7 @@ class TestTextChunker:
         assert chunker.min_tokens == 300
         assert chunker.max_tokens == 500
         assert chunker.delimiters == [".", "\n"]
-        assert chunker.model_name == "gpt-3.5-turbo"
+        assert chunker.model_name == "gpt-4o-mini"
         assert chunker.preserve_paragraphs is True
         assert chunker.merge_small_chunks is True
         assert chunker.split_large_chunks is True
@@ -371,7 +371,7 @@ class TestTextChunker:
 
     def test_different_models(self) -> None:
         """Test chunker with different model names."""
-        models = ["gpt-3.5-turbo", "gpt-4o-mini", "claude-3-sonnet"]
+        models = ["gpt-4o-mini", "gpt-4o-mini", "claude-3-sonnet"]
         text = "This is a test sentence for different models."
 
         for model in models:

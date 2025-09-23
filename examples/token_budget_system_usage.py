@@ -299,7 +299,7 @@ def demonstrate_configuration_options():
             max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
             use_rankings=False,  # Deterministic order only
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
         ),
         BudgetConfig(
             max_token_budget=40000,

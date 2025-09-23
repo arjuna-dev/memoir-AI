@@ -43,7 +43,7 @@ class ContextualHelperGenerator:
         max_tokens: int = 300,
         derivation_budget_tokens: int = 2000,
         max_chunks_for_derivation: int = 5,
-        model_name: str = "gpt-3.5-turbo",
+        model_name: str = "gpt-4o-mini",
     ) -> None:
         """
         Initialize contextual helper generator.

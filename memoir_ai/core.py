@@ -159,12 +159,27 @@ class MemoirAI:
         )
         self.db_manager = DatabaseManager(self.config)
 
+        # Ensure database schema is ready before using any components
+        self._initialize_database()
+
         # Initialize components
         self._initialize_components()
 
         logger.info(
             f"MemoirAI initialized with model {model_name}, hierarchy depth {hierarchy_depth}"
         )
+
+    def _initialize_database(self) -> None:
+        """Create required tables and stamp migrations if needed."""
+        try:
+            self.db_manager.create_tables(use_migrations=True)
+        except DatabaseError:
+            raise
+        except Exception as exc:
+            raise DatabaseError(
+                f"Failed to initialize database schema: {exc}",
+                operation="initialize_schema",
+            )
 
     def _validate_configuration(self) -> None:
         """Validate configuration parameters."""
@@ -268,6 +283,40 @@ class MemoirAI:
         except Exception as e:
             logger.error(f"Failed to initialize MemoirAI components: {e}")
             raise ConfigurationError(f"Component initialization failed: {str(e)}")
+
+    def chunk_text(
+        self,
+        content: str,
+        source_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> List[TextChunk]:
+        """Chunk raw text using the configured TextChunker."""
+        if not hasattr(self, "text_chunker") or self.text_chunker is None:
+            raise ConfigurationError(
+                "Text chunker is not initialized",
+                parameter="text_chunker",
+            )
+
+        content_length = len(content) if content else 0
+        logger.info(
+            "Chunking text for source %s (length=%d)",
+            source_id or "<unknown>",
+            content_length,
+        )
+
+        return self.text_chunker.chunk_text(
+            content=content, source_id=source_id, metadata=metadata
+        )
+
+    def get_chunking_stats(self, chunks: List[TextChunk]) -> Dict[str, Any]:
+        """Compute statistics for a collection of text chunks."""
+        if not hasattr(self, "text_chunker") or self.text_chunker is None:
+            raise ConfigurationError(
+                "Text chunker is not initialized",
+                parameter="text_chunker",
+            )
+
+        return self.text_chunker.get_chunking_stats(chunks)
 
     async def ingest_text(
         self,
@@ -727,6 +776,45 @@ class MemoirAI:
                 f"Failed to regenerate contextual helper: {str(e)}",
                 model=self.model_name,
             )
+
+    def get_database_info(self) -> Dict[str, Any]:
+        """Return database schema, migration, and table statistics."""
+        try:
+            from .database.migration_manager import MigrationManager
+        except Exception as exc:  # pragma: no cover - unexpected import failure
+            raise DatabaseError(
+                f"Migration system unavailable: {exc}",
+                operation="get_database_info",
+            )
+
+        migration_manager: Optional["MigrationManager"] = None
+
+        try:
+            migration_manager = MigrationManager(self.config)
+            validation = migration_manager.validate_database_schema()
+            history = migration_manager.get_migration_history()
+
+            return {
+                "database_url": self.config.database_url,
+                "schema_valid": validation.get("is_valid", False),
+                "current_revision": validation.get("current_revision"),
+                "pending_migrations": validation.get("pending_migrations", []),
+                "tables_exist": validation.get("tables_exist", False),
+                "table_info": validation.get("table_info", {}),
+                "migration_history": history,
+            }
+
+        except DatabaseError:
+            raise
+        except Exception as exc:
+            logger.error(f"Failed to get database info: {exc}")
+            raise DatabaseError(
+                f"Failed to get database info: {str(exc)}",
+                operation="get_database_info",
+            )
+        finally:
+            if migration_manager is not None:
+                migration_manager.close()
 
     def get_statistics(self) -> Dict[str, Any]:
         """

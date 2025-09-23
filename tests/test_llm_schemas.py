@@ -349,7 +349,7 @@ class TestUtilityFunctions:
     def test_supports_native_output_openai(self) -> None:
         """Test native output support detection for OpenAI."""
         assert supports_native_output("openai:gpt-4o-mini") is True
-        assert supports_native_output("openai:gpt-3.5-turbo") is True
+        assert supports_native_output("openai:gpt-4o") is True
 
     def test_supports_native_output_anthropic(self) -> None:
         """Test native output support detection for Anthropic."""

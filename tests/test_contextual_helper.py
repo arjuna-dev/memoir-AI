@@ -58,7 +58,7 @@ class TestContextualHelperGenerator:
         assert generator.max_tokens == 300
         assert generator.derivation_budget_tokens == 2000
         assert generator.max_chunks_for_derivation == 5
-        assert generator.model_name == "gpt-3.5-turbo"
+        assert generator.model_name == "gpt-4o-mini"
 
     def test_generator_initialization_custom(self) -> None:
         """Test generator initialization with custom parameters."""

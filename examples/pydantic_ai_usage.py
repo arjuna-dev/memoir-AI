@@ -158,7 +158,7 @@ def demonstrate_native_output_support():
 
     test_models = [
         "openai:gpt-4o-mini",
-        "openai:gpt-3.5-turbo",
+        "openai:gpt-4o-mini",
         "anthropic:claude-3",
         "grok:grok-1",
         "gemini:gemini-pro",

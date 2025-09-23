@@ -319,14 +319,14 @@ class TestUtilityFunctions:
         processor = create_query_processor(
             category_manager=mock_category_manager,
             session=mock_session,
-            model_name="openai:gpt-3.5-turbo",
+            model_name="openai:gpt-4o-mini",
             default_chunk_limit=50,
         )
 
         assert isinstance(processor, QueryProcessor)
         assert processor.category_manager == mock_category_manager
         assert processor.session == mock_session
-        assert processor.model_name == "openai:gpt-3.5-turbo"
+        assert processor.model_name == "openai:gpt-4o-mini"
         assert processor.default_chunk_limit == 50
 
     @pytest.mark.asyncio

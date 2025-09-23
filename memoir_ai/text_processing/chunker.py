@@ -69,7 +69,7 @@ class TextChunker:
         min_tokens: int = 300,
         max_tokens: int = 500,
         delimiters: Optional[List[str]] = None,
-        model_name: str = "gpt-3.5-turbo",
+        model_name: str = "gpt-4o-mini",
         preserve_paragraphs: bool = True,
         merge_small_chunks: bool = True,
         split_large_chunks: bool = True,
@@ -81,7 +81,7 @@ class TextChunker:
             min_tokens: Minimum tokens per chunk (default 300)
             max_tokens: Maximum tokens per chunk (default 500)
             delimiters: List of delimiters for splitting (default: [".", "\n"])
-            model_name: Model name for token counting (default: "gpt-3.5-turbo")
+            model_name: Model name for token counting (default: "gpt-4o-mini")
             preserve_paragraphs: Whether to preserve paragraph boundaries
             merge_small_chunks: Whether to merge chunks below min_tokens
             split_large_chunks: Whether to split chunks above max_tokens

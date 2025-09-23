@@ -427,7 +427,7 @@ class TestUtilityFunctions:
         manager = create_budget_manager(
             max_token_budget=2000,
             strategy=PromptLimitingStrategy.SUMMARIZE,
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
             use_rankings=False,
         )
 
@@ -436,7 +436,7 @@ class TestUtilityFunctions:
         assert (
             manager.config.prompt_limiting_strategy == PromptLimitingStrategy.SUMMARIZE
         )
-        assert manager.config.model_name == "gpt-3.5-turbo"
+        assert manager.config.model_name == "gpt-4o-mini"
         assert manager.config.use_rankings is False
 
     def test_estimate_tokens_fallback(self) -> None:
