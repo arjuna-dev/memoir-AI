@@ -3,9 +3,13 @@ Database usage example for MemoirAI library.
 """
 
 import asyncio
+import os
 
 from memoir_ai import Category, CategoryLimits, Chunk, ContextualHelper, MemoirAI
 from memoir_ai.exceptions import ConfigurationError, DatabaseError
+
+# Ensure local runs have a fallback API key for LLM initialization.
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 
 async def main():
@@ -25,7 +29,7 @@ async def main():
             chunk_min_tokens=300,
             chunk_max_tokens=500,
             batch_size=5,
-            max_token_budget=4000,
+            max_token_budget=40000,
         )
         print("✅ MemoirAI instance created with database!")
         print(f"   Database: {memoir.config.database_url}")
@@ -38,7 +42,7 @@ async def main():
     print("\n2. Working with database models directly...")
 
     try:
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             # Create category hierarchy
             tech_category = Category(name="Technology", level=1, parent_id=None)
             session.add(tech_category)
@@ -62,14 +66,27 @@ async def main():
             print(f"   - {nlp_category.name} (Level {nlp_category.level})")
 
             # Create contextual helper
-            helper = ContextualHelper(
-                source_id="ai_research_2024",
-                helper_text="This document discusses recent advances in AI and NLP research, "
-                "including transformer models and large language models.",
-                token_count=20,
-                is_user_provided=False,
+            helper = (
+                session.query(ContextualHelper)
+                .filter_by(source_id="ai_research_2024")
+                .one_or_none()
             )
-            session.add(helper)
+            if helper is None:
+                helper = ContextualHelper(
+                    source_id="ai_research_2024",
+                    helper_text="This document discusses recent advances in AI and NLP research, "
+                    "including transformer models and large language models.",
+                    token_count=20,
+                    is_user_provided=False,
+                )
+                session.add(helper)
+            else:
+                helper.helper_text = (
+                    "This document discusses recent advances in AI and NLP research, "
+                    "including transformer models and large language models."
+                )
+                helper.token_count = 20
+                helper.is_user_provided = False
 
             # Create sample chunks
             chunk1 = Chunk(
@@ -92,8 +109,12 @@ async def main():
             session.add_all([chunk1, chunk2])
 
             # Create category limits
-            limits = CategoryLimits(level=1, max_categories=50)
-            session.add(limits)
+            limits = session.get(CategoryLimits, 1)
+            if limits is None:
+                limits = CategoryLimits(level=1, max_categories=50)
+                session.add(limits)
+            else:
+                limits.max_categories = 50
 
             print(f"   Added contextual helper for source: {helper.source_id}")
             print(f"   Added {2} text chunks")
@@ -111,7 +132,7 @@ async def main():
     print("\n3. Querying the database...")
 
     try:
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             # Get all categories
             categories = session.query(Category).all()
             print(f"   Total categories: {len(categories)}")
@@ -160,7 +181,7 @@ async def main():
     print("\n4. Database information...")
 
     try:
-        info = memoir._db_manager.get_table_info()
+        info = memoir.db_manager.get_table_info()
         print("   Table statistics:")
         for table_name, table_info in info.items():
             if "row_count" in table_info:
@@ -177,7 +198,7 @@ async def main():
     print("\n5. Testing database constraints...")
 
     try:
-        with memoir._db_manager.get_session() as session:
+        with memoir.db_manager.get_session() as session:
             # Try to create a category with invalid level
             try:
                 invalid_category = Category(name="Invalid", level=0, parent_id=None)
@@ -201,6 +222,7 @@ async def main():
                 print("❌ This should have failed!")
             except Exception as e:
                 print("✅ Unique constraint working: Duplicate source_id rejected")
+                session.rollback()
 
     except DatabaseError as e:
         print(f"❌ Constraint test error: {e}")
@@ -212,7 +234,7 @@ async def main():
     print("   - Query processing and result aggregation")
 
     # Cleanup
-    memoir._db_manager.close()
+    memoir.db_manager.close()
 
 
 if __name__ == "__main__":
