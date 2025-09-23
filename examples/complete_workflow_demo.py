@@ -8,7 +8,7 @@ import os
 import tempfile
 
 from memoir_ai import Category, Chunk, MemoirAI, TextChunk
-from memoir_ai.exceptions import DatabaseError, ValidationError
+from memoir_ai.exceptions import ConfigurationError, DatabaseError, ValidationError
 
 
 async def main():
@@ -28,7 +28,7 @@ async def main():
         memoir = MemoirAI(
             database_url=f"sqlite:///{db_path}",
             llm_provider="openai",
-            model_name="gpt-3.5-turbo",
+            model_name="gpt-4o-mini",
             hierarchy_depth=3,
             chunk_min_tokens=15,
             chunk_max_tokens=40,
@@ -213,7 +213,7 @@ async def main():
                 chunk_max_tokens=500,  # Invalid: min > max
             )
             print("   ❌ This should have failed!")
-        except ValidationError as e:
+        except (ValidationError, ConfigurationError) as e:
             print(f"   ✅ Configuration error handled: {str(e)[:60]}...")
 
         # Step 9: Performance and scalability test
