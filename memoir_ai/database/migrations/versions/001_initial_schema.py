@@ -8,7 +8,6 @@ Create Date: 2024-01-01 00:00:00.000000
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
 revision = "001"
@@ -49,6 +48,14 @@ def upgrade() -> None:
     op.create_index("idx_categories_level", "categories", ["level"])
     op.create_index("idx_categories_name", "categories", ["name"])
     op.create_index("idx_categories_parent_id", "categories", ["parent_id"])
+    op.create_index(
+        "uq_categories_root_name",
+        "categories",
+        ["name"],
+        unique=True,
+        sqlite_where=sa.text("parent_id IS NULL"),
+        postgresql_where=sa.text("parent_id IS NULL"),
+    )
 
     # Create chunks table
     op.create_table(
@@ -124,4 +131,5 @@ def downgrade() -> None:
     op.drop_table("category_limits")
     op.drop_table("contextual_helpers")
     op.drop_table("chunks")
+    op.drop_index("uq_categories_root_name", table_name="categories")
     op.drop_table("categories")

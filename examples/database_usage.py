@@ -43,24 +43,78 @@ async def main():
 
     try:
         with memoir.db_manager.get_session() as session:
-            # Create category hierarchy
-            tech_category = Category(name="Technology", level=1, parent_id=None)
-            session.add(tech_category)
-            session.flush()  # Get the ID
+            # Helper to reuse existing categories when they already exist
+            def merge_category_trees(source: Category, target: Category) -> None:
+                """Merge two category subtrees that share the same logical node."""
 
-            ai_category = Category(
-                name="Artificial Intelligence", level=2, parent_id=tech_category.id
+                if source.id == target.id:
+                    return
+
+                # Move chunks attached to the source category onto the target
+                session.query(Chunk).filter_by(category_id=source.id).update(
+                    {Chunk.category_id: target.id}, synchronize_session=False
+                )
+
+                # Reattach or merge child categories recursively
+                children = (
+                    session.query(Category)
+                    .filter_by(parent_id=source.id)
+                    .order_by(Category.id)
+                    .all()
+                )
+                for child in children:
+                    existing_child = (
+                        session.query(Category)
+                        .filter_by(parent_id=target.id, name=child.name)
+                        .order_by(Category.id)
+                        .first()
+                    )
+                    if existing_child:
+                        merge_category_trees(child, existing_child)
+                        session.delete(child)
+                    else:
+                        child.parent_id = target.id
+
+                session.flush()
+
+            def get_or_create_category(
+                *, name: str, level: int, parent: Category | None
+            ) -> Category:
+                parent_id = parent.id if parent else None
+                categories = (
+                    session.query(Category)
+                    .filter_by(name=name, parent_id=parent_id)
+                    .order_by(Category.id)
+                    .all()
+                )
+
+                if categories:
+                    keeper = categories[0]
+                    for duplicate in categories[1:]:
+                        merge_category_trees(duplicate, keeper)
+                        session.delete(duplicate)
+
+                    session.flush()
+                    keeper.level = level
+                    return keeper
+
+                category = Category(name=name, level=level, parent_id=parent_id)
+                session.add(category)
+                session.flush()  # Ensure category.id is available for children
+                return category
+
+            # Create category hierarchy idempotently
+            tech_category = get_or_create_category(
+                name="Technology", level=1, parent=None
             )
-            session.add(ai_category)
-            session.flush()
-
-            nlp_category = Category(
-                name="Natural Language Processing", level=3, parent_id=ai_category.id
+            ai_category = get_or_create_category(
+                name="Artificial Intelligence", level=2, parent=tech_category
             )
-            session.add(nlp_category)
-            session.flush()
+            nlp_category = get_or_create_category(
+                name="Natural Language Processing", level=3, parent=ai_category
+            )
 
-            print(f"   Created category hierarchy:")
+            print("   Using category hierarchy:")
             print(f"   - {tech_category.name} (Level {tech_category.level})")
             print(f"   - {ai_category.name} (Level {ai_category.level})")
             print(f"   - {nlp_category.name} (Level {nlp_category.level})")
@@ -89,24 +143,57 @@ async def main():
                 helper.is_user_provided = False
 
             # Create sample chunks
-            chunk1 = Chunk(
+            # Ensure sample chunks are not duplicated on repeated runs
+            def get_or_create_chunk(
+                *,
+                content: str,
+                token_count: int,
+                category: Category,
+                source_id: str,
+            ) -> Chunk:
+                chunks = (
+                    session.query(Chunk)
+                    .filter_by(
+                        content=content,
+                        category_id=category.id,
+                        source_id=source_id,
+                    )
+                    .order_by(Chunk.id)
+                    .all()
+                )
+                if chunks:
+                    chunk = chunks[0]
+                    for duplicate in chunks[1:]:
+                        session.delete(duplicate)
+                    chunk.token_count = token_count
+                    session.flush()
+                    return chunk
+
+                chunk = Chunk(
+                    content=content,
+                    token_count=token_count,
+                    category_id=category.id,
+                    source_id=source_id,
+                )
+                session.add(chunk)
+                return chunk
+
+            chunk1 = get_or_create_chunk(
                 content="Transformer models have revolutionized natural language processing "
                 "by introducing the attention mechanism that allows models to focus "
                 "on relevant parts of the input sequence.",
                 token_count=25,
-                category_id=nlp_category.id,
+                category=nlp_category,
                 source_id="ai_research_2024",
             )
 
-            chunk2 = Chunk(
+            chunk2 = get_or_create_chunk(
                 content="Large language models like GPT and BERT have shown remarkable "
                 "capabilities in understanding and generating human-like text.",
                 token_count=18,
-                category_id=ai_category.id,
+                category=ai_category,
                 source_id="ai_research_2024",
             )
-
-            session.add_all([chunk1, chunk2])
 
             # Create category limits
             limits = session.get(CategoryLimits, 1)
@@ -117,7 +204,9 @@ async def main():
                 limits.max_categories = 50
 
             print(f"   Added contextual helper for source: {helper.source_id}")
-            print(f"   Added {2} text chunks")
+            print(
+                f"   Added or updated {len([chunk1, chunk2])} text chunks for demo content"
+            )
             print(
                 f"   Set category limit: {limits.max_categories} for level {limits.level}"
             )
