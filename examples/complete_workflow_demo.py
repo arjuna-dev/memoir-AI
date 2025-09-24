@@ -23,15 +23,15 @@ async def main():
 
     try:
         # Step 1: Initialize MemoirAI with all systems
-        print("\n1. 🏗️  Initializing MemoirAI with all systems...")
+        print("\n1. Initializing MemoirAI with all systems...")
 
         memoir = MemoirAI(
             database_url=f"sqlite:///{db_path}",
             llm_provider="openai",
             model_name="gpt-4o-mini",
             hierarchy_depth=3,
-            chunk_min_tokens=15,
-            chunk_max_tokens=40,
+            # chunk_min_tokens=15,
+            # chunk_max_tokens=40,
             batch_size=5,
             max_categories_per_level=50,
             max_token_budget=40000,
