@@ -9,6 +9,7 @@ import pytest
 
 from memoir_ai.database.models import Category
 from memoir_ai.exceptions import ClassificationError, ValidationError
+from memoir_ai.llm.schemas import QueryCategorySelection
 from memoir_ai.query.query_strategy_engine import (
     CategoryPath,
     LLMCallResponse,
@@ -118,7 +119,9 @@ class TestQueryStrategyEngine:
 
     def test_initialization(self) -> None:
         """Test QueryStrategyEngine initialization."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent"):
+        with patch(
+            "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+        ):
             engine = QueryStrategyEngine(
                 category_manager=self.mock_category_manager,
                 model_name="openai:gpt-4o-mini",
@@ -131,7 +134,9 @@ class TestQueryStrategyEngine:
     @pytest.mark.asyncio
     async def test_execute_strategy_invalid(self) -> None:
         """Test execute_strategy with invalid strategy."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent"):
+        with patch(
+            "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+        ):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
 
             with pytest.raises(ValidationError) as exc_info:
@@ -143,30 +148,43 @@ class TestQueryStrategyEngine:
     @pytest.mark.asyncio
     async def test_one_shot_strategy(self) -> None:
         """Test one-shot strategy execution."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent") as mock_agent_class:
-            # Mock the agent and its run method
-            mock_agent = Mock()
-            mock_agent_class.return_value = mock_agent
+        with (
+            patch(
+                "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+            ) as mock_agent_factory,
+            patch(
+                "memoir_ai.query.query_strategy_engine.select_category_for_query",
+                new_callable=AsyncMock,
+            ) as mock_select,
+        ):
+            mock_agent_factory.return_value = Mock()
 
-            # Mock LLM responses
-            mock_result1 = Mock()
-            mock_result1.data = QueryClassificationResult(
-                category="Technology", ranked_relevance=1
-            )
-
-            mock_result2 = Mock()
-            mock_result2.data = QueryClassificationResult(
-                category="AI", ranked_relevance=1
-            )
-
-            mock_result3 = Mock()
-            mock_result3.data = QueryClassificationResult(
-                category="ML", ranked_relevance=1
-            )
-
-            mock_agent.run = AsyncMock(
-                side_effect=[mock_result1, mock_result2, mock_result3]
-            )
+            mock_select.side_effect = [
+                (
+                    QueryCategorySelection(category="Technology", ranked_relevance=5),
+                    {
+                        "latency_ms": 42,
+                        "timestamp": datetime.now(),
+                        "prompt": "",
+                    },
+                ),
+                (
+                    QueryCategorySelection(category="AI", ranked_relevance=5),
+                    {
+                        "latency_ms": 41,
+                        "timestamp": datetime.now(),
+                        "prompt": "",
+                    },
+                ),
+                (
+                    QueryCategorySelection(category="ML", ranked_relevance=5),
+                    {
+                        "latency_ms": 40,
+                        "timestamp": datetime.now(),
+                        "prompt": "",
+                    },
+                ),
+            ]
 
             # Mock category manager responses
             self.mock_category_manager.get_existing_categories.side_effect = [
@@ -197,7 +215,9 @@ class TestQueryStrategyEngine:
 
     def test_deduplicate_paths(self) -> None:
         """Test path deduplication."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent"):
+        with patch(
+            "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+        ):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
 
             # Create duplicate paths
@@ -229,7 +249,9 @@ class TestQueryStrategyEngine:
 
     def test_validate_paths(self) -> None:
         """Test path validation."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent"):
+        with patch(
+            "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+        ):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
 
             categories = [
@@ -250,7 +272,9 @@ class TestQueryStrategyEngine:
 
     def test_get_strategy_info(self) -> None:
         """Test getting strategy information."""
-        with patch("memoir_ai.query.query_strategy_engine.Agent"):
+        with patch(
+            "memoir_ai.query.query_strategy_engine.create_query_classification_agent"
+        ):
             engine = QueryStrategyEngine(category_manager=self.mock_category_manager)
 
             # Test known strategy

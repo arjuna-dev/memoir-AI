@@ -22,6 +22,8 @@ from pydantic_ai import Agent
 
 from ..database.models import Category
 from ..exceptions import ClassificationError, ValidationError
+from ..llm.agents import create_query_classification_agent
+from ..llm.interactions import select_category_for_query
 
 if TYPE_CHECKING:
     from ..classification.category_manager import CategoryManager
@@ -103,6 +105,7 @@ class QueryStrategyEngine:
         self.model_name = model_name
         self.session = getattr(category_manager, "db_session", None)
         self.hierarchy_depth = getattr(category_manager, "hierarchy_depth", 3)
+        self._query_agent: Agent | None = None
 
     async def execute_strategy(
         self,
@@ -277,29 +280,28 @@ class QueryStrategyEngine:
     ) -> Dict[str, Any]:
         """Call the LLM agent to select a category."""
 
-        agent = Agent(
-            model=self.model_name,
-            result_type=QueryClassificationResult,
-            instructions="Select the best matching category for the query",
+        if self._query_agent is None:
+            self._query_agent = create_query_classification_agent(self.model_name)
+
+        selection, metadata = await select_category_for_query(
+            query_text=query_text,
+            level=level,
+            available_categories=available_categories,
+            contextual_helper=contextual_helper,
+            agent=self._query_agent,
+            model_name=self.model_name,
         )
 
-        payload = {
-            "query": query_text,
-            "level": level,
-            "context": contextual_helper,
-            "options": [category.name for category in available_categories],
-        }
-
-        start_time = datetime.now()
-        agent_response = await agent.run(payload)
-        latency_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+        result = QueryClassificationResult(
+            category=selection.category, ranked_relevance=selection.ranked_relevance
+        )
 
         return {
-            "result": agent_response.data,
+            "result": result,
             "response": LLMCallResponse(
-                llm_output=agent_response.data,
-                timestamp=datetime.now(),
-                latency_ms=latency_ms,
+                llm_output=result,
+                timestamp=metadata.get("timestamp", datetime.now()),
+                latency_ms=metadata.get("latency_ms", 0),
             ),
         }
 

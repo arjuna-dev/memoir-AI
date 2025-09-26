@@ -20,6 +20,12 @@ from .agents import (  # Agent factory; Convenience functions; Validation functi
     get_supported_providers,
     validate_model_name,
 )
+from .interactions import (  # Prompt builders and execution helpers
+    build_chunk_classification_prompt,
+    build_query_category_prompt,
+    classify_chunk_with_llm,
+    select_category_for_query,
+)
 from .schemas import (  # Classification schemas; Summarization schemas; Answer schemas; Helper schemas; Metadata and result schemas; Configuration schemas; Utility functions; Schema registries
     ALL_SCHEMAS,
     ANSWER_SCHEMAS,
@@ -81,6 +87,11 @@ __all__ = [
     "create_contextual_helper_agent",
     "create_category_creation_agent",
     "create_category_limit_agent",
+    # Interaction helpers
+    "build_chunk_classification_prompt",
+    "build_query_category_prompt",
+    "classify_chunk_with_llm",
+    "select_category_for_query",
     # Validation
     "validate_model_name",
     "get_supported_providers",

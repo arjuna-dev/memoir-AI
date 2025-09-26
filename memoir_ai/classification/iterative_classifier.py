@@ -15,9 +15,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from sqlalchemy.orm import Session
 
 from ..database.models import Category, Chunk
-from ..exceptions import ClassificationError, DatabaseError, ValidationError
+from ..exceptions import ClassificationError, DatabaseError, LLMError, ValidationError
 from ..llm.agents import create_classification_agent
-from ..llm.schemas import CategorySelection
+from ..llm.interactions import (
+    build_chunk_classification_prompt,
+    classify_chunk_with_llm,
+)
 from ..text_processing.chunker import TextChunk
 from .batch_classifier import BatchCategoryClassifier, ClassificationResult
 from .category_manager import CategoryManager
@@ -237,8 +240,11 @@ class IterativeClassificationWorkflow:
                     chunk, level, existing_categories, contextual_helper, can_create_new
                 )
 
+                metadata = getattr(self, "_last_level_metadata", {})
                 total_llm_calls += 1
-                level_latency = int((time.time() - level_start_time) * 1000)
+                level_latency = metadata.get(
+                    "latency_ms", int((time.time() - level_start_time) * 1000)
+                )
 
                 # Find or create category
                 category = await self._get_or_create_category(
@@ -257,6 +263,7 @@ class IterativeClassificationWorkflow:
                         "existing_categories": len(existing_categories),
                         "can_create_new": can_create_new,
                         "latency_ms": level_latency,
+                        "llm_model": metadata.get("model_name"),
                     }
                 )
 
@@ -324,29 +331,24 @@ class IterativeClassificationWorkflow:
         Returns:
             Selected category name
         """
-        # Create classification prompt
-        prompt = self._create_level_prompt(
-            chunk, level, existing_categories, contextual_helper, can_create_new
-        )
-
-        # Call LLM
         try:
-            response = await self.single_classifier.run_async(prompt)
+            limit = self.category_manager.get_category_limit(level)
+            selection, metadata = await classify_chunk_with_llm(
+                chunk_content=chunk.content,
+                level=level,
+                existing_categories=existing_categories,
+                contextual_helper=contextual_helper,
+                can_create_new=can_create_new,
+                category_limit=limit,
+                agent=self.single_classifier,
+                chunk_identifier=getattr(chunk, "chunk_id", None),
+            )
 
-            data = getattr(response, "data", None)
-            if not isinstance(data, CategorySelection) or not data.category:
-                raise ClassificationError(
-                    f"Empty category response at level {level}", retry_count=0
-                )
+            category_name = selection.category.strip()
 
-            category_name = data.category.strip()
-
-            # Validate category selection
             if not can_create_new:
-                # Must select from existing categories
                 existing_names = [cat.name for cat in existing_categories]
                 if category_name not in existing_names:
-                    # Try to find closest match or use first existing
                     if existing_categories:
                         category_name = existing_categories[0].name
                         logger.warning(
@@ -358,12 +360,18 @@ class IterativeClassificationWorkflow:
                             retry_count=0,
                         )
 
+            self._last_level_metadata = metadata
             return category_name
 
-        except Exception as e:
-            logger.error(f"Classification failed at level {level}: {e}")
+        except LLMError as exc:
+            logger.error(f"Classification failed at level {level}: {exc}")
             raise ClassificationError(
-                f"Classification failed at level {level}: {str(e)}", retry_count=0
+                f"Classification failed at level {level}: {str(exc)}", retry_count=0
+            ) from exc
+        except Exception as exc:
+            logger.error(f"Classification failed at level {level}: {exc}")
+            raise ClassificationError(
+                f"Classification failed at level {level}: {str(exc)}", retry_count=0
             )
 
     def _create_level_prompt(
@@ -375,43 +383,15 @@ class IterativeClassificationWorkflow:
         can_create_new: bool,
     ) -> str:
         """Create classification prompt for a specific level."""
-        context_parts: List[str] = []
 
-        if contextual_helper:
-            context_parts.append(f"Document Context: {contextual_helper}")
-
-        context_parts.append(f"Classification Level: {level}")
-
-        if existing_categories:
-            category_names = [cat.name for cat in existing_categories]
-            context_parts.append(f"Existing Categories: {', '.join(category_names)}")
-
-            if can_create_new:
-                context_parts.append(
-                    "Please select from existing categories when possible to avoid duplicates, "
-                    "or create a new category if none fit well."
-                )
-            else:
-                limit = self.category_manager.get_category_limit(level)
-                context_parts.append(
-                    f"Category limit ({limit}) reached. You MUST select from existing categories only."
-                )
-        else:
-            context_parts.append(
-                "No existing categories at this level. You may create a new category."
-            )
-
-        context_section = "\n".join(context_parts)
-
-        prompt = f"""{context_section}
-
-Please classify the following text into the most appropriate category for level {level}:
-
-Text: {chunk.content}
-
-Provide only the category name."""
-
-        return prompt
+        return build_chunk_classification_prompt(
+            chunk_content=chunk.content,
+            level=level,
+            existing_categories=existing_categories,
+            contextual_helper=contextual_helper,
+            can_create_new=can_create_new,
+            category_limit=self.category_manager.get_category_limit(level),
+        )
 
     async def _get_or_create_category(
         self,
