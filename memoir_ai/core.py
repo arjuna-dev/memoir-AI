@@ -517,13 +517,13 @@ class MemoirAI:
     async def query(
         self,
         query_text: str,
+        contextual_helper: str,
         strategy: QueryStrategy = QueryStrategy.ONE_SHOT,
         strategy_params: Optional[Dict[str, Any]] = None,
         prompt_limiting_strategy: Optional[PromptLimitingStrategy] = None,
         max_token_budget: Optional[int] = None,
         use_rankings: Optional[bool] = None,
         limit: int = 10,
-        contextual_helper: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Query stored content using natural language with configurable strategies.

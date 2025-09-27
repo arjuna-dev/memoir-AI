@@ -39,7 +39,7 @@ def build_chunk_classification_prompt(
     chunk_content: str,
     level: int,
     existing_categories: Sequence[Any],
-    contextual_helper: Optional[str],
+    contextual_helper: str,
     can_create_new: bool,
     category_limit: Optional[int] = None,
     parent_categories: Optional[Sequence[Any]] = None,
@@ -104,7 +104,7 @@ def build_query_category_prompt(
     query_text: str,
     level: int,
     available_categories: Sequence[Any],
-    contextual_helper: Optional[str],
+    contextual_helper: str,
 ) -> str:
     """Create the prompt used when selecting categories for a user query."""
 
@@ -142,7 +142,7 @@ async def classify_chunk_with_llm(
     chunk_content: str,
     level: int,
     existing_categories: Sequence[Any],
-    contextual_helper: Optional[str],
+    contextual_helper: str,
     can_create_new: bool,
     category_limit: Optional[int] = None,
     agent: Optional[Agent] = None,
@@ -191,9 +191,9 @@ async def classify_chunk_with_llm(
         "level": level,
         "can_create_new": can_create_new,
         "existing_category_names": _extract_category_names(existing_categories),
-        "parent_category_path": _extract_category_names(parent_categories)
-        if parent_categories
-        else None,
+        "parent_category_path": (
+            _extract_category_names(parent_categories) if parent_categories else None
+        ),
     }
 
     return data, metadata
@@ -204,7 +204,7 @@ async def select_category_for_query(
     query_text: str,
     level: int,
     available_categories: Sequence[Any],
-    contextual_helper: Optional[str],
+    contextual_helper: str,
     agent: Optional[Agent] = None,
     model_name: Optional[str] = None,
 ) -> Tuple[QueryCategorySelection, Dict[str, Any]]:

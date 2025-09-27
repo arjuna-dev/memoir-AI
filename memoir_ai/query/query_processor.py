@@ -70,9 +70,9 @@ class QueryProcessor:
     async def process_query(
         self,
         query_text: str,
+        contextual_helper: str,
         strategy: QueryStrategy = QueryStrategy.ONE_SHOT,
         strategy_params: Optional[Dict[str, Any]] = None,
-        contextual_helper: Optional[str] = None,
         chunk_limit_per_path: Optional[int] = None,
         offset: int = 0,
     ) -> QueryResult:

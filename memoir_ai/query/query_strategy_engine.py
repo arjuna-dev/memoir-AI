@@ -111,8 +111,8 @@ class QueryStrategyEngine:
         self,
         query_text: str,
         strategy: QueryStrategy,
+        contextual_helper: str,
         strategy_params: Optional[Dict[str, Any]] = None,
-        contextual_helper: Optional[str] = None,
     ) -> QueryExecutionResult:
         """Execute the requested traversal strategy."""
 
@@ -150,7 +150,7 @@ class QueryStrategyEngine:
         )
 
     async def _execute_one_shot(
-        self, query_text: str, contextual_helper: Optional[str]
+        self, query_text: str, contextual_helper: str
     ) -> Tuple[List[CategoryPath], List[LLMCallResponse]]:
         """Traverse the hierarchy selecting a single path."""
 
@@ -203,7 +203,7 @@ class QueryStrategyEngine:
         query_text: str,
         strategy: QueryStrategy,
         params: Dict[str, Any],
-        contextual_helper: Optional[str],
+        contextual_helper: str,
     ) -> Tuple[List[CategoryPath], List[LLMCallResponse]]:
         """Execute a branching strategy using simple deterministic expansion."""
 
@@ -276,7 +276,7 @@ class QueryStrategyEngine:
     async def _call_selection_agent(
         self,
         query_text: str,
-        contextual_helper: Optional[str],
+        contextual_helper: str,
         level: int,
         available_categories: Sequence[Category],
     ) -> Dict[str, Any]:
