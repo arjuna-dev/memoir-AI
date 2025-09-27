@@ -30,7 +30,9 @@ class BatchClassificationResponse(BaseModel):
 class CategorySelection(BaseModel):
     """Schema for single category selection with relevance ranking."""
 
-    category: str = Field(description="Name of the selected or new category")
+    category: str = Field(
+        description="Name of the selected or new category", min_length=1
+    )
     ranked_relevance: int = Field(
         description="Relevance ranking from 1 to N (N being most relevant)", ge=1
     )
@@ -39,7 +41,7 @@ class CategorySelection(BaseModel):
 class QueryCategorySelection(BaseModel):
     """Schema for query-based category selection during retrieval."""
 
-    category: str = Field(description="Selected category name")
+    category: str = Field(description="Selected category name", min_length=1)
     ranked_relevance: int = Field(description="Relevance ranking from 1 to N", ge=1)
 
 

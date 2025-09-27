@@ -204,9 +204,11 @@ class TestAgentFactory:
         # Check that the configuration was passed correctly
         call_args = mock_agent_class.call_args
         assert call_args[1]["model"] == "grok:grok-1"
-        assert call_args[1]["temperature"] == 0.7
-        assert call_args[1]["max_tokens"] == 2000
-        assert call_args[1]["timeout"] == 45
+        model_settings = call_args[1]["model_settings"]
+        assert model_settings is not None
+        assert model_settings["temperature"] == 0.7
+        assert model_settings["max_tokens"] == 2000
+        assert model_settings["timeout"] == 45.0
         assert call_args[1]["retries"] == 2
 
     @patch("memoir_ai.llm.agents.Agent")

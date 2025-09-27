@@ -431,6 +431,7 @@ class MemoirAI:
                                         cat.name for cat in result.category_path
                                     ),
                                     "category_id": leaf_category.id,
+                                    "classification_latency_ms": result.total_latency_ms,
                                 }
                             )
                         else:
@@ -440,10 +441,21 @@ class MemoirAI:
 
                     # Store contextual helper if provided
                     if contextual_helper:
+                        helper_tokens = self.text_chunker.count_tokens(
+                            contextual_helper
+                        )
+                        if helper_tokens <= 0:
+                            raise ValidationError(
+                                "Contextual helper must contain at least one token",
+                                field="contextual_helper",
+                                value=contextual_helper,
+                            )
+
                         helper_record = ContextualHelper(
                             source_id=source_id,
-                            helper_text=contextual_helper,
-                            created_at=datetime.now(),
+                            helper_text=contextual_helper.strip(),
+                            token_count=helper_tokens,
+                            is_user_provided=True,
                         )
                         session.add(helper_record)
 
