@@ -39,7 +39,7 @@ class ContextualHelperGenerator:
 
     def __init__(
         self,
-        auto_source_identification: bool = True,
+        auto_source_identification: bool = False,
         max_tokens: int = 300,
         derivation_budget_tokens: int = 2000,
         max_chunks_for_derivation: int = 5,
@@ -430,8 +430,12 @@ class ContextualHelperGenerator:
                 helper_text += "."
             return helper_text
 
-        # Fallback if no information available
-        return "Document content for classification and retrieval."
+        # If no data available, raise error
+        raise ValidationError(
+            "Insufficient information to generate contextual helper",
+            field="helper_data",
+            value=helper_data,
+        )
 
     def _validate_and_format_helper(
         self, helper_text: str, is_user_provided: bool = False
@@ -561,7 +565,13 @@ class ContextualHelperGenerator:
         return False
 
     def create_user_provided_helper(
-        self, author: str, date: str, topic: str, description: str
+        self,
+        title: str,
+        author: str,
+        date: str,
+        topic: str,
+        source_type: str,
+        description: str,
     ) -> str:
         """
         Create contextual helper from user-provided information.
@@ -576,14 +586,16 @@ class ContextualHelperGenerator:
             Formatted contextual helper text
         """
         # Validate inputs
-        if not all([author, date, topic, description]):
+        if not all([title, author, date, topic, source_type, description]):
             raise ValidationError(
-                "All fields (author, date, topic, description) are required",
+                "All fields (title, author, date, topic, source_type, description) are required",
                 field="user_input",
                 value={
+                    "title": title,
                     "author": author,
                     "date": date,
                     "topic": topic,
+                    "source_type": source_type,
                     "description": description,
                 },
             )
