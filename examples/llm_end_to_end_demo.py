@@ -9,6 +9,7 @@ from pathlib import Path
 
 from memoir_ai.core import MemoirAI
 from memoir_ai.query.query_strategy_engine import QueryStrategy
+from memoir_ai.text_processing.contextual_helper import ContextualHelperGenerator
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
@@ -38,6 +39,19 @@ async def run_demo() -> None:
         chunk_max_tokens=220,
     )
 
+    contextual_helper = ContextualHelperGenerator()
+    user_provided_context = contextual_helper.create_user_provided_helper(
+        title="",
+        author="Jane Doe",
+        date="2023-10-05",
+        topic="Middle East Politics",
+        source_type="news_article",
+        description=(
+            "A news article discussing recent political events in the Middle East, "
+            "focusing on key figures and international reactions."
+        ),
+    )
+
     from sample_data_set.news_26_09_2025_0 import news_article
 
     sample_text = news_article
@@ -45,7 +59,7 @@ async def run_demo() -> None:
     ingestion_result = await memoir.ingest_text(
         content=sample_text.strip(),
         source_id="demo-doc",
-        contextual_helper="news article from 26th of September 2025",
+        contextual_helper=user_provided_context,
     )
 
     if not ingestion_result.success:
