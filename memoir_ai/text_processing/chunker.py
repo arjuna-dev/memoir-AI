@@ -220,36 +220,20 @@ class TextChunker:
 
     def _split_by_delimiters(self, content: str) -> List[str]:
         """Split content by configured delimiters."""
-        segments = []
+        segments: List[str] = []
         current_pos = 0
 
-        # Find all delimiter matches
         for match in self.delimiter_pattern.finditer(content):
-            # Add text before delimiter
-            if match.start() > current_pos:
-                segment = content[current_pos : match.start()].strip()
-                if segment:
-                    segments.append(segment)
-
-            # Add delimiter with following text until next delimiter or end
-            delimiter_start = match.start()
-            next_match = None
-
-            # Find next delimiter
-            remaining_content = content[match.end() :]
-            next_delimiter_match = self.delimiter_pattern.search(remaining_content)
-
-            if next_delimiter_match:
-                # Include text up to next delimiter
-                segment_end = match.end() + next_delimiter_match.start()
-                segment = content[delimiter_start:segment_end].strip()
-            else:
-                # Include rest of content
-                segment = content[delimiter_start:].strip()
-
+            segment = content[current_pos : match.end()].strip()
             if segment:
                 segments.append(segment)
-                current_pos = delimiter_start + len(segment)
+            current_pos = match.end()
+
+        # Capture any trailing text after the final delimiter
+        if current_pos < len(content):
+            trailing = content[current_pos:].strip()
+            if trailing:
+                segments.append(trailing)
 
         # Handle case where no delimiters found
         if not segments and content.strip():
@@ -329,6 +313,22 @@ class TextChunker:
                 <= self.max_tokens
             ):
                 # Merge chunks
+                merged_content = current_chunk.content + " " + next_chunk.content
+                merged_token_count = self.count_tokens(merged_content)
+
+                current_chunk = TextChunk(
+                    content=merged_content,
+                    token_count=merged_token_count,
+                    start_position=current_chunk.start_position,
+                    end_position=next_chunk.end_position,
+                    source_id=current_chunk.source_id,
+                    metadata=current_chunk.metadata,
+                )
+            elif (
+                next_chunk.token_count < self.min_tokens
+                and current_chunk.token_count + next_chunk.token_count
+                <= self.max_tokens
+            ):
                 merged_content = current_chunk.content + " " + next_chunk.content
                 merged_token_count = self.count_tokens(merged_content)
 

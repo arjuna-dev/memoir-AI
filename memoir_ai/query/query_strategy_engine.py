@@ -159,7 +159,9 @@ class QueryStrategyEngine:
         parent: Optional[Category] = None
 
         for level in range(1, self.hierarchy_depth + 1):
-            categories = self.category_manager.get_existing_categories(level, parent)
+            categories = self.category_manager.get_existing_categories(
+                level, parent.id if parent else None
+            )
             if not categories:
                 break
 
@@ -228,7 +230,7 @@ class QueryStrategyEngine:
             for path in active_paths:
                 parent_category = path[-1] if path else None
                 categories = self.category_manager.get_existing_categories(
-                    level, parent_category
+                    level, parent_category.id if parent_category else None
                 )
                 if not categories:
                     continue

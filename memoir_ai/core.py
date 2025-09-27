@@ -431,6 +431,7 @@ class MemoirAI:
                                         cat.name for cat in result.category_path
                                     ),
                                     "category_id": leaf_category.id,
+                                    "classification_latency_ms": result.total_latency_ms,
                                 }
                             )
                         else:

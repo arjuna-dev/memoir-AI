@@ -402,6 +402,49 @@ class TestIterativeClassificationWorkflow:
             assert "AI research" in prompt
             assert "select from existing categories when possible" in prompt
 
+    def test_create_level_prompt_with_parent_context(self) -> None:
+        """Ensure parent category context is included for deeper levels."""
+        session = self.create_mock_session()
+        category_manager = self.create_mock_category_manager()
+
+        with (
+            patch(
+                "memoir_ai.classification.iterative_classifier.BatchCategoryClassifier"
+            ),
+            patch(
+                "memoir_ai.classification.iterative_classifier.create_classification_agent"
+            ),
+        ):
+            workflow = IterativeClassificationWorkflow(session, category_manager)
+
+            chunk = TextChunk(
+                content="Quantum computing breakthroughs",
+                token_count=15,
+                start_position=0,
+                end_position=30,
+            )
+
+            existing_categories = [
+                Category(id=2, name="Quantum Mechanics", level=2, parent_id=1),
+                Category(id=3, name="Particle Physics", level=2, parent_id=1),
+            ]
+            parent_categories = [
+                Category(id=1, name="Physics", level=1, parent_id=None)
+            ]
+
+            prompt = workflow._create_level_prompt(
+                chunk,
+                2,
+                existing_categories,
+                "science context",
+                True,
+                parent_categories=parent_categories,
+            )
+
+            assert "Parent Category Path: Physics" in prompt
+            assert "more specific" in prompt
+            assert "Avoid repeating the exact parent category name" in prompt
+
     def test_create_level_prompt_no_existing_categories(self) -> None:
         """Test creating level prompt with no existing categories."""
         session = self.create_mock_session()

@@ -7,6 +7,17 @@ Delegates staged a mass walkout as Israeli prime minister Benjamin Netanyahu gav
 There were boos as he decried the growing global recognition of a Palestinian state and vowed Israel would continue to fight in Gaza and “finish the job” of eliminating Hamas. The remarks fly in the face of international pressure on Netanyahu to end the war.
 
 Addressing rows of empty seats at the UN General Assembly on Friday, he firmly rejected giving the Palestinians a state, and told world leaders who have recognised such a state this week that “we will not allow you to shove a terror state down our throats”.
+"""
+
+news_article_b = """
+# UN delegates lead a mass walkout as Netanyahu insists Israel must ‘finish the job’ in Gaza
+Delegates stormed out during Benjamin Netanyahu’s speech as he lambasted nations for ‘caving’ to Hamas
+
+Delegates staged a mass walkout as Israeli prime minister Benjamin Netanyahu gave his UN address, shortly before he railed against nations that have “waged a political and legal war” against his country.
+
+There were boos as he decried the growing global recognition of a Palestinian state and vowed Israel would continue to fight in Gaza and “finish the job” of eliminating Hamas. The remarks fly in the face of international pressure on Netanyahu to end the war.
+
+Addressing rows of empty seats at the UN General Assembly on Friday, he firmly rejected giving the Palestinians a state, and told world leaders who have recognised such a state this week that “we will not allow you to shove a terror state down our throats”.
 
 Dozens of delegates walked out of the chamber as Netanyahu, who is wanted for war crimes by the International Criminal Court, took to the podium.
 

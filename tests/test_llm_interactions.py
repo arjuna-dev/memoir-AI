@@ -33,10 +33,13 @@ def test_build_chunk_classification_prompt_with_categories() -> None:
         contextual_helper="Academic paper",
         can_create_new=True,
         category_limit=10,
+        parent_categories=[DummyCategory("Research")],
     )
 
     assert "Document Context: Academic paper" in prompt
     assert "Classification Level: 2" in prompt
+    assert "Parent Category Path: Research" in prompt
+    assert "more specific" in prompt
     assert "Existing Categories: Technology, Science" in prompt
     assert "AI research advances" in prompt
 
@@ -91,12 +94,14 @@ async def test_classify_chunk_with_llm_success() -> None:
         category_limit=5,
         agent=agent,
         chunk_identifier="chunk-1",
+        parent_categories=[DummyCategory("Computing")],
     )
 
     agent.run_async.assert_awaited()
     assert selection.category == "Technology"
     assert metadata["chunk_identifier"] == "chunk-1"
     assert "latency_ms" in metadata
+    assert metadata["parent_category_path"] == ["Computing"]
 
 
 @pytest.mark.asyncio

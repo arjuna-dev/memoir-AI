@@ -10,7 +10,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from sqlalchemy.orm import Session
 
@@ -237,7 +237,12 @@ class IterativeClassificationWorkflow:
 
                 # Classify at this level
                 category_name = await self._classify_at_level(
-                    chunk, level, existing_categories, contextual_helper, can_create_new
+                    chunk,
+                    level,
+                    existing_categories,
+                    contextual_helper,
+                    can_create_new,
+                    parent_categories=category_path,
                 )
 
                 metadata = getattr(self, "_last_level_metadata", {})
@@ -317,6 +322,7 @@ class IterativeClassificationWorkflow:
         existing_categories: List[Category],
         contextual_helper: str,
         can_create_new: bool,
+        parent_categories: Optional[Sequence[Category]] = None,
     ) -> str:
         """
         Classify chunk at a specific hierarchy level.
@@ -342,6 +348,7 @@ class IterativeClassificationWorkflow:
                 category_limit=limit,
                 agent=self.single_classifier,
                 chunk_identifier=getattr(chunk, "chunk_id", None),
+                parent_categories=parent_categories,
             )
 
             category_name = selection.category.strip()
@@ -386,6 +393,7 @@ class IterativeClassificationWorkflow:
         existing_categories: List[Category],
         contextual_helper: str,
         can_create_new: bool,
+        parent_categories: Optional[Sequence[Category]] = None,
     ) -> str:
         """Create classification prompt for a specific level."""
 
@@ -396,6 +404,7 @@ class IterativeClassificationWorkflow:
             contextual_helper=contextual_helper,
             can_create_new=can_create_new,
             category_limit=self.category_manager.get_category_limit(level),
+            parent_categories=parent_categories,
         )
 
     async def _get_or_create_category(

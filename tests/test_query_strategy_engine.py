@@ -213,6 +213,11 @@ class TestQueryStrategyEngine:
             assert path.path[1].name == "AI"
             assert path.path[2].name == "ML"
 
+            calls = self.mock_category_manager.get_existing_categories.call_args_list
+            assert calls[0].args == (1, None)
+            assert calls[1].args == (2, 1)
+            assert calls[2].args == (3, 3)
+
     def test_deduplicate_paths(self) -> None:
         """Test path deduplication."""
         with patch(

@@ -42,6 +42,7 @@ def build_chunk_classification_prompt(
     contextual_helper: Optional[str],
     can_create_new: bool,
     category_limit: Optional[int] = None,
+    parent_categories: Optional[Sequence[Any]] = None,
 ) -> str:
     """Construct the prompt used for single chunk classification."""
 
@@ -51,6 +52,18 @@ def build_chunk_classification_prompt(
         context_parts.append(f"Document Context: {contextual_helper}")
 
     context_parts.append(f"Classification Level: {level}")
+
+    parent_names: list[str] = []
+    if level > 1 and parent_categories:
+        parent_names = _extract_category_names(parent_categories)
+        if parent_names:
+            context_parts.append("Parent Category Path: " + " > ".join(parent_names))
+            context_parts.append(
+                "Select a sub-category that is more specific than the parent path."
+            )
+            context_parts.append(
+                "Avoid repeating the exact parent category name unless it is the only suitable option."
+            )
 
     category_names = _extract_category_names(existing_categories)
     if category_names:
@@ -135,6 +148,7 @@ async def classify_chunk_with_llm(
     agent: Optional[Agent] = None,
     model_name: Optional[str] = None,
     chunk_identifier: Optional[str] = None,
+    parent_categories: Optional[Sequence[Any]] = None,
 ) -> Tuple[CategorySelection, Dict[str, Any]]:
     """Execute a single chunk classification call using Pydantic AI."""
 
@@ -145,6 +159,7 @@ async def classify_chunk_with_llm(
         contextual_helper=contextual_helper,
         can_create_new=can_create_new,
         category_limit=category_limit,
+        parent_categories=parent_categories,
     )
 
     logger.info(f"LLM Prompt for level {level}: {prompt}")
@@ -161,7 +176,9 @@ async def classify_chunk_with_llm(
         ) from exc
 
     latency_ms = int((time.perf_counter() - start_time) * 1000)
-    data = getattr(response, "output", None)
+    data = getattr(response, "data", None)
+    if data is None:
+        data = getattr(response, "output", None)
     if not isinstance(data, CategorySelection) or not data.category.strip():
         raise LLMError(f"Empty category response at level {level}")
 
@@ -174,6 +191,9 @@ async def classify_chunk_with_llm(
         "level": level,
         "can_create_new": can_create_new,
         "existing_category_names": _extract_category_names(existing_categories),
+        "parent_category_path": _extract_category_names(parent_categories)
+        if parent_categories
+        else None,
     }
 
     return data, metadata
@@ -208,7 +228,9 @@ async def select_category_for_query(
         ) from exc
 
     latency_ms = int((time.perf_counter() - start_time) * 1000)
-    data = getattr(response, "output", None)
+    data = getattr(response, "data", None)
+    if data is None:
+        data = getattr(response, "output", None)
 
     if isinstance(data, QueryCategorySelection):
         if not data.category.strip():

@@ -64,7 +64,7 @@ async def run_demo() -> None:
 
     print("\nRunning a query that triggers LLM category selection...\n")
     query_result = await memoir.query_processor.process_query(
-        query_text="How does MemoirAI organize documents?",
+        query_text="What happened with Netanyahu?",
         strategy=QueryStrategy.ONE_SHOT,
         contextual_helper="User wants a brief explanation of the system",
         chunk_limit_per_path=5,
