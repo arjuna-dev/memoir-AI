@@ -39,7 +39,7 @@ class ContextualHelperGenerator:
 
     def __init__(
         self,
-        auto_source_identification: bool = False,
+        auto_source_identification: bool = True,
         max_tokens: int = 300,
         derivation_budget_tokens: int = 2000,
         max_chunks_for_derivation: int = 5,

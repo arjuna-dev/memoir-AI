@@ -142,6 +142,7 @@ class TestQueryProcessor:
             result = await self.processor.process_query(
                 query_text="machine learning algorithms",
                 strategy=QueryStrategy.ONE_SHOT,
+                contextual_helper="test context",
             )
 
             # Verify calls
@@ -149,7 +150,7 @@ class TestQueryProcessor:
                 query_text="machine learning algorithms",
                 strategy=QueryStrategy.ONE_SHOT,
                 strategy_params={},
-                contextual_helper=None,
+                contextual_helper="test context",
             )
 
             mock_retriever.assert_called_once_with(
@@ -233,7 +234,9 @@ class TestQueryProcessor:
             mock_strategy.side_effect = Exception("Strategy execution failed")
 
             result = await self.processor.process_query(
-                query_text="test query", strategy=QueryStrategy.ONE_SHOT
+                query_text="test query",
+                strategy=QueryStrategy.ONE_SHOT,
+                contextual_helper="test context",
             )
 
             # Verify error result

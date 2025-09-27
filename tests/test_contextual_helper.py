@@ -250,10 +250,13 @@ class TestContextualHelperGenerator:
         generator = ContextualHelperGenerator()
 
         helper_data = ContextualHelperData()
-        helper_text = generator._compose_helper_text(helper_data)
 
-        # Should return fallback text
-        assert "Document content for classification" in helper_text
+        # Should raise an error when no data is provided
+        with pytest.raises(ValidationError) as exc_info:
+            generator._compose_helper_text(helper_data)
+        assert "Insufficient information to generate contextual helper" in str(
+            exc_info.value
+        )
 
     def test_validate_and_format_helper(self) -> None:
         """Test helper text validation and formatting."""
@@ -297,9 +300,11 @@ class TestContextualHelperGenerator:
 
         # Test valid user input
         helper = generator.create_user_provided_helper(
+            title="The Impact of Climate Change",
             author="Jane Doe",
             date="2024-01-01",
             topic="Climate Science",
+            source_type="Research Paper",
             description="A study on global warming effects",
         )
 
@@ -313,17 +318,27 @@ class TestContextualHelperGenerator:
         """Test user-provided helper validation."""
         generator = ContextualHelperGenerator()
 
-        # Test missing fields
+        # Test missing fields (empty author)
         with pytest.raises(ValidationError) as exc_info:
             generator.create_user_provided_helper(
-                "", "2024-01-01", "Topic", "Description"
+                title="Title",
+                author="",
+                date="2024-01-01",
+                topic="Topic",
+                source_type="Source Type",
+                description="Description",
             )
         assert "All fields" in str(exc_info.value)
 
         # Test invalid date
         with pytest.raises(ValidationError) as exc_info:
             generator.create_user_provided_helper(
-                "Author", "invalid-date", "Topic", "Description"
+                title="Title",
+                author="Author",
+                date="invalid-date",
+                topic="Topic",
+                source_type="Source Type",
+                description="Description",
             )
         assert "ISO 8601 format" in str(exc_info.value)
 
@@ -333,7 +348,12 @@ class TestContextualHelperGenerator:
         )  # Way over 200 tokens
         with pytest.raises(ValidationError) as exc_info:
             generator.create_user_provided_helper(
-                "Author", "2024-01-01", "Topic", long_description
+                title="Title",
+                author="Author",
+                date="2024-01-01",
+                topic="Topic",
+                source_type="Source Type",
+                description=long_description,
             )
         assert "200 token limit" in str(exc_info.value)
 
@@ -343,9 +363,11 @@ class TestContextualHelperGenerator:
 
         # Test with unknown values
         helper = generator.create_user_provided_helper(
+            title="unknown",
             author="unknown",
             date="2024-01-01",
             topic="unknown",
+            source_type="unknown",
             description="A research document",
         )
 

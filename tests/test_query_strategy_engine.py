@@ -141,7 +141,9 @@ class TestQueryStrategyEngine:
 
             with pytest.raises(ValidationError) as exc_info:
                 await engine.execute_strategy(
-                    query_text="test query", strategy="invalid_strategy"
+                    query_text="test query",
+                    strategy="invalid_strategy",
+                    contextual_helper="",
                 )
             assert "Unknown strategy" in str(exc_info.value)
 
@@ -199,6 +201,7 @@ class TestQueryStrategyEngine:
             result = await engine.execute_strategy(
                 query_text="machine learning algorithms",
                 strategy=QueryStrategy.ONE_SHOT,
+                contextual_helper="test context",
             )
 
             assert isinstance(result, QueryExecutionResult)
