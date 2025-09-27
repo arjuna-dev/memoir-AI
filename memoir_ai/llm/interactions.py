@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import UTC, datetime
 from typing import Any, Dict, Optional, Sequence, Tuple
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from pydantic_ai import Agent
 
@@ -143,16 +147,21 @@ async def classify_chunk_with_llm(
         category_limit=category_limit,
     )
 
+    logger.info(f"LLM Prompt for level {level}: {prompt}")
+
     classification_agent = agent or create_classification_agent(model_name)
 
     start_time = time.perf_counter()
     try:
         response = await classification_agent.run_async(prompt)
+        logger.info(f"LLM Response for level {level}: {response}")
     except Exception as exc:  # pragma: no cover - network/runtime specific
-        raise LLMError(f"Failed to classify chunk at level {level}: {exc}") from exc
+        raise LLMError(
+            f"interactions.py | Failed to classify chunk at level {level}: {exc}"
+        ) from exc
 
     latency_ms = int((time.perf_counter() - start_time) * 1000)
-    data = getattr(response, "data", None)
+    data = getattr(response, "output", None)
     if not isinstance(data, CategorySelection) or not data.category.strip():
         raise LLMError(f"Empty category response at level {level}")
 
@@ -199,7 +208,7 @@ async def select_category_for_query(
         ) from exc
 
     latency_ms = int((time.perf_counter() - start_time) * 1000)
-    data = getattr(response, "data", None)
+    data = getattr(response, "output", None)
 
     if isinstance(data, QueryCategorySelection):
         if not data.category.strip():

@@ -346,6 +346,11 @@ class IterativeClassificationWorkflow:
 
             category_name = selection.category.strip()
 
+            logger.info(
+                f"LLM selected category '{category_name}' at level {level} "
+                f"(relevance: {selection.ranked_relevance}, {metadata['latency_ms']}ms)"
+            )
+
             if not can_create_new:
                 existing_names = [cat.name for cat in existing_categories]
                 if category_name not in existing_names:

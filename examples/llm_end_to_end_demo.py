@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 
 from memoir_ai.core import MemoirAI
 from memoir_ai.query.query_strategy_engine import QueryStrategy
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
+)
 
 
 async def run_demo() -> None:
@@ -33,18 +38,14 @@ async def run_demo() -> None:
         chunk_max_tokens=220,
     )
 
-    sample_text = """
-MemoirAI is an experimental knowledge management system. It focuses on
-creating rich hierarchical categories that capture the nuance of long-form
-content. The project combines automated text chunking with LLM powered
-classification to organize articles, research papers, meeting notes, and more.
-"""
+    from sample_data_set.news_26_09_2025_0 import news_article
 
+    sample_text = news_article
     print("\nIngesting sample document using live classification...\n")
     ingestion_result = await memoir.ingest_text(
         content=sample_text.strip(),
         source_id="demo-doc",
-        contextual_helper="Internal README for the MemoirAI library",
+        contextual_helper="news article from 26th of September 2025",
     )
 
     if not ingestion_result.success:
