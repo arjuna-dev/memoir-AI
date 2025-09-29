@@ -41,7 +41,7 @@ async def run_demo() -> None:
 
     contextual_helper = ContextualHelperGenerator()
     user_provided_context = contextual_helper.create_user_provided_helper(
-        title="",
+        title="UN Representatives Walk Out on Netanyahu Speech",
         author="Jane Doe",
         date="2023-10-05",
         topic="Middle East Politics",
