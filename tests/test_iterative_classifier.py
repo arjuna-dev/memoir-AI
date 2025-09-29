@@ -396,7 +396,7 @@ class TestIterativeClassificationWorkflow:
                 chunk, 1, existing_categories, "test context", True
             )
 
-            assert "Document Context: test context" in prompt
+            assert "Document Context (root category): test context" in prompt
             assert "Classification Level: 1" in prompt
             assert "Existing Categories: Technology, Science" in prompt
             assert "AI research" in prompt
