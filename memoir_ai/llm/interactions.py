@@ -49,7 +49,15 @@ def build_chunk_classification_prompt(
     context_parts: list[str] = []
 
     if contextual_helper:
-        context_parts.append(f"Document Context: {contextual_helper}")
+        context_parts.append(f"Document Context (root category): {contextual_helper}")
+        if level == 1:
+            context_parts.append(
+                "Level 1 categories must be direct subcategories of this document context."
+            )
+        else:
+            context_parts.append(
+                "All categories must remain consistent with the document context and parent selections."
+            )
 
     context_parts.append(f"Classification Level: {level}")
 

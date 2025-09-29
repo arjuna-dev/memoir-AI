@@ -36,7 +36,8 @@ def test_build_chunk_classification_prompt_with_categories() -> None:
         parent_categories=[DummyCategory("Research")],
     )
 
-    assert "Document Context: Academic paper" in prompt
+    assert "Document Context (root category): Academic paper" in prompt
+    assert "remain consistent with the document context" in prompt
     assert "Classification Level: 2" in prompt
     assert "Parent Category Path: Research" in prompt
     assert "more specific" in prompt
