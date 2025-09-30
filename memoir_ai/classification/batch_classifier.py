@@ -16,6 +16,7 @@ from pydantic_ai import Agent
 from ..database.models import Category
 from ..exceptions import ClassificationError, LLMError, ValidationError
 from ..llm.agents import create_batch_classification_agent, create_classification_agent
+from ..llm.context_windows import CONTEXT_WINDOWS
 from ..llm.schemas import (
     BatchClassificationResponse,
     CategorySelection,
@@ -126,6 +127,41 @@ class BatchCategoryClassifier:
                 value=self.hierarchy_depth,
             )
 
+    def _validate_chunk_token_count(self, chunks: List[TextChunk]) -> None:
+        """
+        Validate that the combined token count of all chunks does not exceed half of the context window.
+        """
+        context_window = CONTEXT_WINDOWS.get(
+            self.model_name, 128_000
+        )  # Default to 128,000 if model not found
+        max_tokens = context_window // 2
+
+        total_tokens = sum(chunk.token_count for chunk in chunks)
+        if total_tokens > max_tokens:
+            raise ValidationError(
+                f"Total token count ({total_tokens}) exceeds half of the context window ({max_tokens})",
+                field="chunks",
+                value=total_tokens,
+            )
+
+    def _validate_final_prompt_length(self, prompt: str) -> None:
+        """
+        Validate that the final prompt does not exceed half of the context window.
+        """
+        context_window = CONTEXT_WINDOWS.get(
+            self.model_name, 128_000
+        )  # Default to 128,000 if model not found
+        max_tokens = context_window // 2
+
+        # Estimate token count in the prompt
+        token_count = len(prompt.split())  # Simplistic token count approximation
+        if token_count > max_tokens:
+            raise ValidationError(
+                f"Final prompt token count ({token_count}) exceeds half of the context window ({max_tokens})",
+                field="prompt",
+                value=token_count,
+            )
+
     async def classify_chunks_batch(
         self,
         chunks: List[TextChunk],
@@ -154,7 +190,7 @@ class BatchCategoryClassifier:
             f"Starting batch classification of {len(chunks)} chunks at level {level}"
         )
 
-        # Split chunks into batches
+        # Consolidate chunks into batches
         batches = self._create_batches(chunks)
         all_results = []
 
@@ -192,7 +228,7 @@ class BatchCategoryClassifier:
         return all_results
 
     def _create_batches(self, chunks: List[TextChunk]) -> List[List[TextChunk]]:
-        """Split chunks into batches of configured size."""
+        """Consolidate chunks into batches of configured size."""
         batches = []
         for i in range(0, len(chunks), self.batch_size):
             batch = chunks[i : i + self.batch_size]
@@ -215,9 +251,7 @@ class BatchCategoryClassifier:
 
         try:
             # Create batch prompt
-            prompt = self._create_batch_prompt(
-                chunks, existing_categories, contextual_helper, level
-            )
+            prompt = self._create_batch_prompt_all_levels(chunks, contextual_helper)
 
             # Call LLM
             logger.debug(f"Sending batch prompt for {batch_id}")
@@ -284,7 +318,7 @@ class BatchCategoryClassifier:
                 f"Batch classification failed: {str(e)}", retry_count=0
             )
 
-    def _create_batch_prompt(
+    def _create_batch_prompt_level_by_level(
         self,
         chunks: List[TextChunk],
         existing_categories: List[Category],
@@ -356,6 +390,143 @@ Please classify each chunk into the most appropriate category. For each chunk, p
 {chunks_text}
 
 Respond with JSON containing the category for each chunk. Do not echo the chunk content."""
+
+        return prompt
+
+    def _create_batch_prompt_all_levels(
+        self,
+        chunks: List[TextChunk],
+        contextual_helper: str,
+    ) -> str:
+        """
+        Create structured batch prompt
+        """
+        # Validate chunk token count
+        self._validate_chunk_token_count(chunks)
+
+        # Build contextual information
+        context_parts = []
+
+        if contextual_helper:
+            context_parts.append(f"Document Context: {contextual_helper}")
+
+        context_section = "\n".join(context_parts)
+
+        # Build chunks section per requirements
+        chunks_section = []
+        for i, chunk in enumerate(chunks, 1):
+            chunks_section.append(f"Chunk {i}:")
+            chunks_section.append('"""')
+            chunks_section.append(chunk.content)
+            chunks_section.append('"""')
+
+        chunks_text = "\n".join(chunks_section)
+
+        # Build complete prompt
+        prompt = f"""{context_section}
+
+Your job is to classify each of the {len(chunks)} chunks of the text into {self.hierarchy_depth} nested categories. Take in account that an LLM will use those categories to try to retrieve relevant texts for a human query so the category names should be descriptive enough that they will point to the relevant content.
+
+Since we know the context of the text already (title, author, date, etc.) the nested categories should be under it, drilling down into more specifics.
+
+For each chunk, provide:
+1. The chunk ID (1, 2, 3, etc.)
+2. The nested categories with name and child category if any
+
+Example input context:
+\"\"\"
+title="UN Delegates Walk Out on Netanyahu Speech",
+author="Jane Doe",
+date="2025-10-09",
+topic="News Article About Palestine-Israel Conflict",
+source_type="news_article",
+description= "UN delegates lead a mass walkout as Netanyahu insists Israel must 'finish the job' in Gaza. Delegates stormed out during Benjamin Netanyahu's speech as he lambasted nations for 'caving' to Hamas"
+\"\"\"
+
+Example input text chunks:
+
+Chunk 1:
+\"\"\"
+
+UN delegates lead a mass walkout as Netanyahu insists Israel must 'finish the job' in Gaza
+
+Delegates stormed out during Benjamin Netanyahu's speech as he lambasted nations for 'caving' to Hamas
+
+Delegates staged a mass walkout as Israeli prime minister Benjamin Netanyahu gave his UN address, shortly before he railed against nations that have “waged a political and legal war” against his country.
+
+There were boos as he decried the growing global recognition of a Palestinian state and vowed Israel would continue to fight in Gaza and “finish the job” of eliminating Hamas. The remarks fly in the face of international pressure on Netanyahu to end the war.
+\"\"\"
+
+Chunk 2:
+\"\"\"
+Addressing rows of empty seats at the UN General Assembly on Friday, he firmly rejected giving the Palestinians a state, and told world leaders who have recognised such a state this week that “we will not allow you to shove a terror state down our throats”.
+
+Dozens of delegates walked out of the chamber as Netanyahu, who is wanted for war crimes by the International Criminal Court, took to the podium.
+
+He accused world leaders of buckling “when the going got tough” for Israel.
+\"\"\"
+
+Chunk 3:
+\"\"\"
+“When the going got tough, you caved,” he said to the mostly empty chamber.
+
+“And here is the shameless result of that collapse. For much of the past two years, Israel has had to fight a seven-front war against barbarism with many of your nations opposing us.
+
+Benjamin Netanyahu told UN General Assembly delegates they 'appease evil'
+open image in gallery
+Benjamin Netanyahu told UN General Assembly delegates they 'appease evil' (Reuters)
+“Astoundingly, as we fight the terrorists who murdered many of your citizens, you are fighting us. You condemn us, you embargo us, and you wage political and legal warfare – it's called lawfare – against us.
+
+“I say to the representatives of those nations, this is not an indictment of Israel; it's an indictment of you. It's an indictment of weak leaders who appease evil rather than support a nation whose brave soldiers guard you from the barbarians at the gate.”
+\"\"\"
+
+Example response format (for real use cases expect larger chunks):
+
+"classifications": [
+    {{
+      "chunk_id": 1,
+      "category_tree": {{
+        "name": "UNGA Walkout & Audience Reaction (Boos, Empty Seats)",
+        "child": {{
+          "name": "Speech Theme: 'Finish the Job' Pledge",
+          "child": {{
+            "name": "Opposition to Palestinian State Recognition (Within Gaza War Context)"
+          }}
+        }}
+      }}
+    }},
+    {{
+      "chunk_id": 2,
+      "category_tree": {{
+        "name": "Policy Stance at UNGA",
+        "child": {{
+          "name": "Rejection of Palestinian Statehood",
+          "child": {{
+            "name": "International Law & Accountability (ICC Warrant Reference)"
+          }}
+        }}
+      }}
+    }},
+    {{
+      "chunk_id": 3,
+      "category_tree": {{
+        "name": "Political Communication & Rhetoric",
+        "child": {{
+          "name": "Accusations of 'Lawfare' and International Appeasement",
+          "child": {{
+            "name": "Security Narrative: 'Seven-Front War' & Condemnation of Embargoes"
+          }}
+        }}
+      }}
+    }}
+  ],
+
+{chunks_text}
+
+"""
+
+        # Validate final prompt length
+        self._validate_final_prompt_length(prompt)
 
         return prompt
 
