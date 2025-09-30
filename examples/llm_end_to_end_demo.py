@@ -43,8 +43,8 @@ async def run_demo() -> None:
     user_provided_context = contextual_helper.create_user_provided_helper(
         title="UN Delegates Walk Out on Netanyahu Speech",
         author="Jane Doe",
-        date="2023-10-05",
-        topic="Middle East Politics",
+        date="2025-10-09",
+        topic="News Article About Palestine-Israel Conflict",
         source_type="news_article",
         description=(
             "UN delegates lead a mass walkout as Netanyahu insists Israel must ‘finish the job’ in Gaza"
