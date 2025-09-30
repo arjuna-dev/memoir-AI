@@ -69,10 +69,6 @@ class TestMemoirAIConfig:
             MemoirAIConfig(database_url="sqlite:///test.db", batch_size=0)  # Too small
         assert "batch_size" in str(exc_info.value)
 
-        with pytest.raises(ConfigurationError) as exc_info:
-            MemoirAIConfig(database_url="sqlite:///test.db", batch_size=51)  # Too large
-        assert "batch_size" in str(exc_info.value)
-
     def test_category_limits_validation(self) -> None:
         """Test category limits validation."""
         # Test negative global limit

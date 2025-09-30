@@ -87,11 +87,6 @@ class TestBatchCategoryClassifier:
                 BatchCategoryClassifier(batch_size=0)
             assert "batch_size must be positive" in str(exc_info.value)
 
-            # Test batch size too large
-            with pytest.raises(ValidationError) as exc_info:
-                BatchCategoryClassifier(batch_size=100)
-            assert "batch_size cannot exceed 50" in str(exc_info.value)
-
             # Test negative retries
             with pytest.raises(ValidationError) as exc_info:
                 BatchCategoryClassifier(max_retries=-1)
@@ -743,8 +738,6 @@ class TestUtilityFunctions:
 
         assert validate_batch_size(0) is False
         assert validate_batch_size(-1) is False
-        assert validate_batch_size(51) is False
-        assert validate_batch_size(100) is False
 
 
 class TestClassificationResult:

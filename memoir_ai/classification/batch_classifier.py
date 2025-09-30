@@ -112,13 +112,6 @@ class BatchCategoryClassifier:
                 "batch_size must be positive", field="batch_size", value=self.batch_size
             )
 
-        if self.batch_size > 50:
-            raise ValidationError(
-                "batch_size cannot exceed 50 for performance reasons",
-                field="batch_size",
-                value=self.batch_size,
-            )
-
         if self.max_retries < 0:
             raise ValidationError(
                 "max_retries cannot be negative",
