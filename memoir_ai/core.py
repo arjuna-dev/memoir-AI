@@ -32,6 +32,7 @@ from .exceptions import (
     MemoirAIError,
     ValidationError,
 )
+from .llm.context_windows import Model, Models
 from .query.query_processor import QueryProcessor, process_natural_language_query
 from .query.query_strategy_engine import QueryStrategy
 
@@ -103,7 +104,7 @@ class MemoirAI:
         hierarchy_depth: int = 3,
         chunk_min_tokens: int = 150,
         chunk_max_tokens: int = 350,
-        model_name: str = "gpt-4o-mini",
+        model: Model = Models.openai_gpt_4o_mini,
         batch_size: int = 5,
         max_categories_per_level: Union[int, Dict[int, int]] = 128,
         auto_source_identification: bool = True,
@@ -120,7 +121,7 @@ class MemoirAI:
             hierarchy_depth: Maximum category hierarchy depth (1-100)
             chunk_min_tokens: Minimum tokens per chunk
             chunk_max_tokens: Maximum tokens per chunk
-            model_name: LLM model name
+            model: LLM model name
             batch_size: Batch size for processing (1-50)
             max_categories_per_level: Category limits per level
             auto_source_identification: Whether to auto-identify sources
@@ -134,7 +135,8 @@ class MemoirAI:
         self.hierarchy_depth = hierarchy_depth
         self.chunk_min_tokens = chunk_min_tokens
         self.chunk_max_tokens = chunk_max_tokens
-        self.model_name = model_name
+        self.model_name = model.name
+        self.model = model
         self.batch_size = batch_size
         self.max_categories_per_level = max_categories_per_level
         self.auto_source_identification = auto_source_identification
@@ -166,7 +168,7 @@ class MemoirAI:
         self._initialize_components()
 
         logger.info(
-            f"MemoirAI initialized with model {model_name}, hierarchy depth {hierarchy_depth}"
+            f"MemoirAI initialized with model {self.model_name}, hierarchy depth {self.hierarchy_depth}"
         )
 
     def _initialize_database(self) -> None:
@@ -258,7 +260,7 @@ class MemoirAI:
                     self.iterative_classifier = IterativeClassificationWorkflow(
                         session,
                         self.category_manager,
-                        model_name=self.model_name,
+                        model=self.model,
                         batch_size=self.batch_size,
                     )
                 else:  # pragma: no cover - unexpected

@@ -11,12 +11,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from litellm import token_counter
 from pydantic_ai import Agent
 
 from ..database.models import Category
 from ..exceptions import ClassificationError, LLMError, ValidationError
 from ..llm.agents import create_batch_classification_agent, create_classification_agent
-from ..llm.context_windows import CONTEXT_WINDOWS
+from ..llm.context_windows import Model, Models
 from ..llm.schemas import (
     BatchClassificationResponse,
     CategorySelection,
@@ -71,7 +72,7 @@ class BatchCategoryClassifier:
 
     def __init__(
         self,
-        model_name: str = "openai:gpt-4o-mini",
+        model: Model = Models.openai_gpt_4_1_mini,
         batch_size: int = 5,
         max_retries: int = 3,
         hierarchy_depth: int = 3,
@@ -82,14 +83,16 @@ class BatchCategoryClassifier:
         Initialize batch classifier.
 
         Args:
-            model_name: LLM model to use for classification
+            model: LLM model to use for classification
             batch_size: Number of chunks to process per batch (default 5)
             max_retries: Maximum retry attempts for failed chunks
             hierarchy_depth: Maximum hierarchy depth for categories
             max_categories_per_level: Maximum categories per level (global or per-level)
             temperature: Temperature for LLM generation
         """
-        self.model_name = model_name
+        self.model_name = model.name
+        self.context_length = model.context_length
+        self.litellm_name = model.litellm_name
         self.batch_size = batch_size
         self.max_retries = max_retries
         self.hierarchy_depth = hierarchy_depth
@@ -97,8 +100,8 @@ class BatchCategoryClassifier:
         self.temperature = temperature
 
         # Create agents
-        self.batch_agent = create_batch_classification_agent(model_name)
-        self.single_agent = create_classification_agent(model_name)
+        self.batch_agent = create_batch_classification_agent(model.name)
+        self.single_agent = create_classification_agent(model.name)
 
         # Metrics tracking
         self.metrics_history: List[BatchClassificationMetrics] = []
@@ -131,11 +134,15 @@ class BatchCategoryClassifier:
         """
         Validate that the combined token count of all chunks does not exceed half of the context window.
         """
-        context_window = CONTEXT_WINDOWS.get(
-            self.model_name, 128_000
-        )  # Default to 128,000 if model not found
-        max_tokens = context_window // 2
+        model = getattr(Models, self.model_name.replace("-", "_").lower(), None)
+        if not model:
+            raise ValidationError(
+                f"Model {self.model_name} not found in context windows.",
+                field="model_name",
+                value=self.model_name,
+            )
 
+        max_tokens = self.context_length // 2
         total_tokens = sum(chunk.token_count for chunk in chunks)
         if total_tokens > max_tokens:
             raise ValidationError(
@@ -148,13 +155,9 @@ class BatchCategoryClassifier:
         """
         Validate that the final prompt does not exceed half of the context window.
         """
-        context_window = CONTEXT_WINDOWS.get(
-            self.model_name, 128_000
-        )  # Default to 128,000 if model not found
-        max_tokens = context_window // 2
 
-        # Estimate token count in the prompt
-        token_count = len(prompt.split())  # Simplistic token count approximation
+        max_tokens = self.context_length // 2
+        token_count = token_counter(prompt, model_name=self.litellm_name)
         if token_count > max_tokens:
             raise ValidationError(
                 f"Final prompt token count ({token_count}) exceeds half of the context window ({max_tokens})",
@@ -766,7 +769,7 @@ Provide the category name only."""
 
 # Utility functions for batch processing
 def create_batch_classifier(
-    model_name: str = "openai:gpt-4o-mini", batch_size: int = 5, **kwargs: Any
+    model: Model = Models.openai_gpt_4_1_mini, batch_size: int = 5, **kwargs: Any
 ) -> BatchCategoryClassifier:
     """
     Create a batch category classifier with default configuration.
@@ -779,9 +782,7 @@ def create_batch_classifier(
     Returns:
         Configured BatchCategoryClassifier
     """
-    return BatchCategoryClassifier(
-        model_name=model_name, batch_size=batch_size, **kwargs
-    )
+    return BatchCategoryClassifier(model=model, batch_size=batch_size, **kwargs)
 
 
 def validate_batch_size(batch_size: int) -> bool:

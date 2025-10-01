@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from ..database.models import Category, Chunk
 from ..exceptions import ClassificationError, DatabaseError, LLMError, ValidationError
 from ..llm.agents import create_classification_agent
+from ..llm.context_windows import Model, Models
 from ..llm.interactions import (
     build_chunk_classification_prompt,
     classify_chunk_with_llm,
@@ -75,7 +76,7 @@ class IterativeClassificationWorkflow:
         self,
         db_session: Session,
         category_manager: CategoryManager,
-        model_name: str = "openai:gpt-4o-mini",
+        model: Model = Models.openai_gpt_4o_mini,
         use_batch_processing: bool = True,
         batch_size: int = 5,
         max_retries: int = 3,
@@ -95,7 +96,8 @@ class IterativeClassificationWorkflow:
         """
         self.db_session = db_session
         self.category_manager = category_manager
-        self.model_name = model_name
+        self.model_name = model.name
+        self.model = model
         self.use_batch_processing = use_batch_processing
         self.batch_size = batch_size
         self.max_retries = max_retries
@@ -105,7 +107,7 @@ class IterativeClassificationWorkflow:
         self.batch_classifier: Optional[BatchCategoryClassifier] = None
         if use_batch_processing:
             self.batch_classifier = BatchCategoryClassifier(
-                model_name=model_name,
+                model=model,
                 batch_size=batch_size,
                 max_retries=max_retries,
                 hierarchy_depth=category_manager.hierarchy_depth,
@@ -113,7 +115,7 @@ class IterativeClassificationWorkflow:
                 temperature=temperature,
             )
 
-        self.single_classifier = create_classification_agent(model_name)
+        self.single_classifier = create_classification_agent(model.name)
 
         # Metrics tracking
         self.metrics_history: List[ClassificationWorkflowMetrics] = []
@@ -615,7 +617,7 @@ class IterativeClassificationWorkflow:
 def create_iterative_classifier(
     db_session: Session,
     category_manager: CategoryManager,
-    model_name: str = "openai:gpt-4o-mini",
+    model: Model = Models.openai_gpt_4o_mini,
     **kwargs: Any,
 ) -> IterativeClassificationWorkflow:
     """
@@ -633,6 +635,6 @@ def create_iterative_classifier(
     return IterativeClassificationWorkflow(
         db_session=db_session,
         category_manager=category_manager,
-        model_name=model_name,
+        model=model,
         **kwargs,
     )
