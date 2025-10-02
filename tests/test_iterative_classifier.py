@@ -16,6 +16,7 @@ from memoir_ai.classification.iterative_classifier import (
 )
 from memoir_ai.database.models import Category, Chunk
 from memoir_ai.exceptions import ClassificationError, ValidationError
+from memoir_ai.llm.context_windows import Models
 from memoir_ai.llm.schemas import CategorySelection
 from memoir_ai.text_processing.chunker import TextChunk
 
@@ -162,14 +163,14 @@ class TestIterativeClassificationWorkflow:
             workflow = IterativeClassificationWorkflow(
                 session,
                 category_manager,
-                model_name="anthropic:claude-3",
+                model=Models.anthropic_claude_3_5_haiku_20241022,
                 use_batch_processing=False,
                 batch_size=10,
                 max_retries=5,
                 temperature=0.7,
             )
 
-            assert workflow.model_name == "anthropic:claude-3"
+            assert workflow.model_name == "anthropic:claude-3-5-haiku-20241022"
             assert workflow.use_batch_processing is False
             assert workflow.batch_size == 10
             assert workflow.max_retries == 5
@@ -774,12 +775,12 @@ class TestUtilityFunctions:
             classifier = create_iterative_classifier(
                 session,
                 category_manager,
-                model_name="anthropic:claude-3",
+                model=Models.anthropic_claude_3_5_haiku_20241022,
                 batch_size=10,
             )
 
             assert isinstance(classifier, IterativeClassificationWorkflow)
             assert classifier.db_session == session
             assert classifier.category_manager == category_manager
-            assert classifier.model_name == "anthropic:claude-3"
+            assert classifier.model_name == "anthropic:claude-3-5-haiku-20241022"
             assert classifier.batch_size == 10

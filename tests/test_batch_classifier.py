@@ -16,6 +16,7 @@ from memoir_ai.classification.batch_classifier import (
 )
 from memoir_ai.database.models import Category
 from memoir_ai.exceptions import ClassificationError, ValidationError
+from memoir_ai.llm.context_windows import Model, Models
 from memoir_ai.llm.schemas import (
     BatchClassificationResponse,
     CategorySelection,
@@ -39,7 +40,7 @@ class TestBatchCategoryClassifier:
         ):
             classifier = BatchCategoryClassifier()
 
-            assert classifier.model_name == "openai:gpt-4o-mini"
+            assert classifier.model_name == "openai:gpt-4.1-mini"
             assert classifier.batch_size == 5
             assert classifier.max_retries == 3
             assert classifier.hierarchy_depth == 3
@@ -57,7 +58,7 @@ class TestBatchCategoryClassifier:
             ),
         ):
             classifier = BatchCategoryClassifier(
-                model_name="anthropic:claude-3",
+                model=Models.anthropic_claude_3_5_haiku_20241022,
                 batch_size=10,
                 max_retries=5,
                 hierarchy_depth=5,
@@ -65,7 +66,7 @@ class TestBatchCategoryClassifier:
                 temperature=0.7,
             )
 
-            assert classifier.model_name == "anthropic:claude-3"
+            assert classifier.model_name == "anthropic:claude-3-5-haiku-20241022"
             assert classifier.batch_size == 10
             assert classifier.max_retries == 5
             assert classifier.hierarchy_depth == 5
@@ -127,8 +128,8 @@ class TestBatchCategoryClassifier:
             assert len(batches[1]) == 3
             assert len(batches[2]) == 1
 
-    def test_create_batch_prompt(self) -> None:
-        """Test batch prompt creation."""
+    def test_create_batch_prompt_level_by_level(self) -> None:
+        """Test batch prompt creation for level by level processing."""
         with (
             patch(
                 "memoir_ai.classification.batch_classifier.create_batch_classification_agent"
@@ -162,7 +163,7 @@ class TestBatchCategoryClassifier:
 
             contextual_helper = "Research paper about artificial intelligence"
 
-            prompt = classifier._create_batch_prompt(
+            prompt = classifier._create_batch_prompt_level_by_level(
                 chunks, categories, contextual_helper, 1
             )
 
@@ -179,7 +180,7 @@ class TestBatchCategoryClassifier:
             assert "Machine learning algorithms" in prompt
             assert '"""' in prompt  # Check for proper chunk delimiters
 
-    def test_create_batch_prompt_no_existing_categories(self) -> None:
+    def test_create_batch_prompt_level_by_level_no_existing_categories(self) -> None:
         """Test batch prompt creation with no existing categories."""
         with (
             patch(
@@ -200,12 +201,14 @@ class TestBatchCategoryClassifier:
                 ),
             ]
 
-            prompt = classifier._create_batch_prompt(chunks, [], "Test context", 1)
+            prompt = classifier._create_batch_prompt_level_by_level(
+                chunks, [], "Test context", 1
+            )
 
             assert "No existing categories at this level" in prompt
             assert "You may create new categories" in prompt
 
-    def test_create_batch_prompt_category_limit_reached(self) -> None:
+    def test_create_batch_prompt_level_by_level_category_limit_reached(self) -> None:
         """Test batch prompt creation when category limit is reached."""
         with (
             patch(
@@ -232,7 +235,7 @@ class TestBatchCategoryClassifier:
                 Category(id=2, name="Category2", level=1),
             ]
 
-            prompt = classifier._create_batch_prompt(
+            prompt = classifier._create_batch_prompt_level_by_level(
                 chunks, categories, "Test context", 1
             )
 
@@ -722,11 +725,11 @@ class TestUtilityFunctions:
             ),
         ):
             classifier = create_batch_classifier(
-                model_name="test:model", batch_size=10, max_retries=5
+                model=Models.openai_gpt_4o_mini, batch_size=10, max_retries=5
             )
 
             assert isinstance(classifier, BatchCategoryClassifier)
-            assert classifier.model_name == "test:model"
+            assert classifier.model_name == "openai:gpt-4o-mini"
             assert classifier.batch_size == 10
             assert classifier.max_retries == 5
 
