@@ -20,8 +20,10 @@ from ..llm.agents import create_classification_agent
 from ..llm.context_windows import Model, Models
 from ..llm.interactions import (
     build_chunk_classification_prompt,
+    classify_all_chunks_with_llm,
     classify_chunk_with_llm,
 )
+from ..llm.schemas import CategoryTree, HierarchicalBatchClassificationResponse
 from ..text_processing.chunker import TextChunk
 from .batch_classifier import BatchCategoryClassifier, ClassificationResult
 from .category_manager import CategoryManager
@@ -200,6 +202,223 @@ class IterativeClassificationWorkflow:
             raise ClassificationError(
                 f"Classification workflow failed: {str(e)}", retry_count=0
             )
+
+    async def classify_all_chunks(
+        self,
+        chunks: List[TextChunk],
+        contextual_helper: str,
+        source_id: Optional[str] = None,
+    ) -> List[IterativeClassificationResult]:
+        """
+        Classify all chunks using hierarchical batch classification in a single LLM call.
+
+        Args:
+            chunks: List of text chunks to classify
+            contextual_helper: Contextual information about the source
+            source_id: Optional source identifier for tracking
+
+        Returns:
+            List of classification results for all chunks
+        """
+        if not chunks:
+            return []
+
+        workflow_id = f"batch_workflow_{int(time.time())}_{len(chunks)}"
+        start_time = time.time()
+
+        logger.info(
+            f"Starting hierarchical batch classification workflow {workflow_id} for {len(chunks)} chunks"
+        )
+
+        try:
+            # Call LLM for hierarchical batch classification
+            response, metadata = await classify_all_chunks_with_llm(
+                chunks=chunks,
+                contextual_helper=contextual_helper,
+                hierarchy_depth=self.category_manager.hierarchy_depth,
+                model_name=self.model_name,
+            )
+
+            logger.info(f"LLM returned {len(response.classifications)} classifications")
+
+            # Process each classification result
+            results = []
+            for classification in response.classifications:
+                chunk_idx = classification.chunk_id - 1  # Convert to 0-based index
+
+                if chunk_idx < 0 or chunk_idx >= len(chunks):
+                    logger.warning(
+                        f"Invalid chunk_id {classification.chunk_id}, skipping"
+                    )
+                    continue
+
+                chunk = chunks[chunk_idx]
+
+                try:
+                    # Extract category path from hierarchical tree
+                    category_path = self._extract_category_path_from_tree(
+                        classification.category_tree
+                    )
+
+                    if category_path:
+                        final_category = category_path[-1]
+
+                        # Store chunk classification
+                        await self._store_chunk_classification(
+                            chunk=chunk,
+                            final_category=final_category,
+                            source_id=source_id,
+                        )
+
+                        results.append(
+                            IterativeClassificationResult(
+                                chunk=chunk,
+                                category_path=category_path,
+                                final_category=final_category,
+                                success=True,
+                                total_latency_ms=metadata.get("latency_ms", 0),
+                                llm_calls=1,
+                                levels_processed=len(category_path),
+                            )
+                        )
+                    else:
+                        results.append(
+                            IterativeClassificationResult(
+                                chunk=chunk,
+                                category_path=[],
+                                final_category=None,
+                                success=False,
+                                total_latency_ms=metadata.get("latency_ms", 0),
+                                llm_calls=1,
+                                levels_processed=0,
+                                error="Failed to extract category path from tree",
+                            )
+                        )
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to process classification for chunk {chunk_idx}: {e}"
+                    )
+                    results.append(
+                        IterativeClassificationResult(
+                            chunk=chunk,
+                            category_path=[],
+                            final_category=None,
+                            success=False,
+                            total_latency_ms=metadata.get("latency_ms", 0),
+                            llm_calls=1,
+                            levels_processed=0,
+                            error=str(e),
+                        )
+                    )
+
+            # Record metrics
+            total_latency_ms = int((time.time() - start_time) * 1000)
+            self._record_workflow_metrics(
+                workflow_id, chunks, results, total_latency_ms, 1
+            )
+
+            logger.info(
+                f"Completed hierarchical batch classification workflow {workflow_id}: "
+                f"{len([r for r in results if r.success])}/{len(results)} successful"
+            )
+
+            return results
+
+        except Exception as e:
+            logger.error(
+                f"Hierarchical batch classification workflow {workflow_id} failed: {e}",
+                exc_info=True,
+            )
+
+            # Return failed results for all chunks
+            failed_results = [
+                IterativeClassificationResult(
+                    chunk=chunk,
+                    category_path=[],
+                    final_category=None,
+                    success=False,
+                    total_latency_ms=0,
+                    llm_calls=0,
+                    levels_processed=0,
+                    error=str(e),
+                )
+                for chunk in chunks
+            ]
+
+            total_latency_ms = int((time.time() - start_time) * 1000)
+            self._record_workflow_metrics(
+                workflow_id, chunks, failed_results, total_latency_ms, 0
+            )
+
+            return failed_results
+
+    def _extract_category_path_from_tree(
+        self, category_tree: CategoryTree | None
+    ) -> List[Category]:
+        """
+        Extract and create category path from hierarchical category tree.
+
+        Args:
+            category_tree: Hierarchical category tree from LLM response
+
+        Returns:
+            List of Category objects representing the path from root to leaf
+        """
+        category_path: list = []
+        current_tree = category_tree
+        parent_id = None
+
+        while current_tree:
+            # Get or create category at current level
+            level = len(category_path) + 1
+            category_name = current_tree.name.strip()
+
+            if not category_name:
+                logger.warning("Empty category name in tree, stopping extraction")
+                break
+
+            try:
+                # Check if category exists
+                existing_category = (
+                    self.db_session.query(Category)
+                    .filter(
+                        Category.name == category_name,
+                        Category.level == level,
+                        Category.parent_id == parent_id,
+                    )
+                    .first()
+                )
+
+                if existing_category:
+                    category = existing_category
+                    logger.debug(
+                        f"Using existing category: {category_name} at level {level}"
+                    )
+                else:
+                    # Create new category
+                    category = self.category_manager.create_category(
+                        name=category_name,
+                        level=level,
+                        parent_id=parent_id,
+                    )
+                    logger.info(
+                        f"Created new category: {category_name} at level {level}"
+                    )
+
+                category_path.append(category)
+                parent_id = category.id
+
+                # Move to child if exists
+                current_tree = current_tree.child
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to process category {category_name} at level {level}: {e}"
+                )
+                break
+
+        return category_path
 
     async def _classify_single_chunk(
         self,

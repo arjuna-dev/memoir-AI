@@ -388,7 +388,7 @@ class MemoirAI:
                         )
 
                     classification_results = (
-                        await self.iterative_classifier.classify_chunks(
+                        await self.iterative_classifier.classify_all_chunks(
                             chunks=chunks,
                             contextual_helper=contextual_helper
                             or f"Content from source: {source_id}",

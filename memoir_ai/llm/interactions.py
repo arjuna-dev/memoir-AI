@@ -13,8 +13,16 @@ logger = logging.getLogger(__name__)
 from pydantic_ai import Agent
 
 from ..exceptions import LLMError
-from .agents import create_classification_agent, create_query_classification_agent
-from .schemas import CategorySelection, QueryCategorySelection
+from .agents import (
+    create_classification_agent,
+    create_hierarchical_batch_classification_agent,
+    create_query_classification_agent,
+)
+from .schemas import (
+    CategorySelection,
+    HierarchicalBatchClassificationResponse,
+    QueryCategorySelection,
+)
 
 
 def _extract_category_names(categories: Sequence[Any]) -> list[str]:
@@ -265,3 +273,65 @@ async def select_category_for_query(
     }
 
     return selection, metadata
+
+
+async def classify_all_chunks_with_llm(
+    *,
+    chunks: list[Any],
+    contextual_helper: str,
+    hierarchy_depth: int = 3,
+    agent: Optional[Agent] = None,
+    model_name: Optional[str] = None,
+) -> Tuple[HierarchicalBatchClassificationResponse, Dict[str, Any]]:
+    """Execute a hierarchical batch classification call for all chunks using Pydantic AI."""
+
+    from ..classification.batch_classifier import BatchCategoryClassifier
+    from ..llm.context_windows import Models
+
+    # Create a temporary batch classifier to use its prompt generation method
+    temp_classifier = BatchCategoryClassifier(
+        model=Models.openai_gpt_4o_mini, hierarchy_depth=hierarchy_depth
+    )
+
+    # Generate the prompt using the existing method
+    prompt = temp_classifier._create_batch_prompt_all_levels(
+        chunks=chunks, contextual_helper=contextual_helper
+    )
+
+    logger.info(f"LLM Hierarchical Batch Classification Prompt: {prompt}")
+
+    classification_agent = agent or create_hierarchical_batch_classification_agent(
+        model_name
+    )
+
+    start_time = time.perf_counter()
+    try:
+        response = await classification_agent.run_async(prompt)
+        logger.info(f"LLM Hierarchical Batch Classification Response: {response}")
+    except Exception as exc:  # pragma: no cover - network/runtime specific
+        raise LLMError(
+            f"interactions.py | Failed to classify all chunks with hierarchical batch classification: {exc}"
+        ) from exc
+
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    data = getattr(response, "data", None)
+    if data is None:
+        data = getattr(response, "output", None)
+
+    if not isinstance(data, HierarchicalBatchClassificationResponse):
+        raise LLMError("Invalid hierarchical batch classification response format")
+
+    if not data.classifications:
+        raise LLMError("Empty classifications response")
+
+    metadata = {
+        "prompt": prompt,
+        "latency_ms": latency_ms,
+        "timestamp": datetime.now(UTC),
+        "model_name": model_name or getattr(classification_agent, "model", None),
+        "chunks_count": len(chunks),
+        "hierarchy_depth": hierarchy_depth,
+        "contextual_helper": contextual_helper,
+    }
+
+    return data, metadata

@@ -27,6 +27,36 @@ class BatchClassificationResponse(BaseModel):
     )
 
 
+class CategoryTree(BaseModel):
+    """Schema for hierarchical category tree structure."""
+
+    name: str = Field(description="Name of the category at this level", min_length=1)
+    child: Optional["CategoryTree"] = Field(
+        description="Child category in the hierarchy", default=None
+    )
+
+
+class HierarchicalChunkClassification(BaseModel):
+    """Schema for individual chunk classification with hierarchical categories."""
+
+    chunk_id: int = Field(description="Unique identifier for the chunk")
+    category_tree: CategoryTree = Field(
+        description="Hierarchical category tree for the chunk"
+    )
+
+
+class HierarchicalBatchClassificationResponse(BaseModel):
+    """Schema for hierarchical batch classification responses from LLM."""
+
+    classifications: List[HierarchicalChunkClassification] = Field(
+        description="List of chunk classifications with hierarchical category trees"
+    )
+
+
+# Update forward references for recursive models
+CategoryTree.model_rebuild()
+
+
 class CategorySelection(BaseModel):
     """Schema for single category selection with relevance ranking."""
 
@@ -212,6 +242,7 @@ def supports_native_output(model_name: str) -> bool:
 CLASSIFICATION_SCHEMAS = {
     "single": CategorySelection,
     "batch": BatchClassificationResponse,
+    "hierarchical_batch": HierarchicalBatchClassificationResponse,
     "query": QueryCategorySelection,
 }
 
@@ -230,6 +261,8 @@ ALL_SCHEMAS = {
     "contextual_helper": ContextualHelperGeneration,
     "category_creation": CategoryCreation,
     "category_limit": CategoryLimitResponse,
+    "category_tree": CategoryTree,
+    "hierarchical_chunk_classification": HierarchicalChunkClassification,
     "validation": ValidationResult,
     "error": LLMError,
 }

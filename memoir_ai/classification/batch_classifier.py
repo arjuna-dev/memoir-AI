@@ -134,13 +134,6 @@ class BatchCategoryClassifier:
         """
         Validate that the combined token count of all chunks does not exceed half of the context window.
         """
-        model = getattr(Models, self.model_name.replace("-", "_").lower(), None)
-        if not model:
-            raise ValidationError(
-                f"Model {self.model_name} not found in context windows.",
-                field="model_name",
-                value=self.model_name,
-            )
 
         max_tokens = self.context_length // 2
         total_tokens = sum(chunk.token_count for chunk in chunks)
@@ -157,7 +150,8 @@ class BatchCategoryClassifier:
         """
 
         max_tokens = self.context_length // 2
-        token_count = token_counter(prompt, model_name=self.litellm_name)
+        messages = [{"user": "role", "content": prompt}]
+        token_count = token_counter(model=self.litellm_name, messages=messages)
         if token_count > max_tokens:
             raise ValidationError(
                 f"Final prompt token count ({token_count}) exceeds half of the context window ({max_tokens})",

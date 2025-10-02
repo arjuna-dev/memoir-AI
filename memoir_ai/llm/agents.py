@@ -24,6 +24,7 @@ from .schemas import (
     CategorySelection,
     ContextualHelperGeneration,
     FinalAnswer,
+    HierarchicalBatchClassificationResponse,
     ModelConfiguration,
     QueryCategorySelection,
     SummarizationResponse,
@@ -129,6 +130,38 @@ class AgentFactory:
             config=effective_config,
             agent_name="BatchClassification",
             description="Classify multiple chunks into categories in a single request",
+        )
+
+        self._agent_cache[cache_key] = agent
+        return agent
+
+    def create_hierarchical_batch_classification_agent(
+        self,
+        model_name: Optional[str] = None,
+        config: Optional[ModelConfiguration] = None,
+    ) -> Agent:
+        """
+        Create an agent for hierarchical batch category classification.
+
+        Args:
+            model_name: Model to use (overrides config)
+            config: Model configuration
+
+        Returns:
+            Configured Pydantic AI agent
+        """
+        effective_config = self._get_effective_config(model_name, config)
+        cache_key = f"hierarchical_batch_classification_{effective_config.model_name}_{effective_config.temperature}"
+
+        if cache_key in self._agent_cache:
+            return self._agent_cache[cache_key]
+
+        agent = self._create_agent_with_schema(
+            schema=HierarchicalBatchClassificationResponse,
+            model_name=effective_config.model_name,
+            config=effective_config,
+            agent_name="HierarchicalBatchClassification",
+            description="Classify multiple chunks into hierarchical category trees in a single request",
         )
 
         self._agent_cache[cache_key] = agent
@@ -476,6 +509,15 @@ def create_batch_classification_agent(
 ) -> Agent:
     """Create a batch classification agent using the global factory."""
     return get_agent_factory().create_batch_classification_agent(model_name, config)
+
+
+def create_hierarchical_batch_classification_agent(
+    model_name: Optional[str] = None, config: Optional[ModelConfiguration] = None
+) -> Agent:
+    """Create a hierarchical batch classification agent using the global factory."""
+    return get_agent_factory().create_hierarchical_batch_classification_agent(
+        model_name, config
+    )
 
 
 def create_query_classification_agent(
