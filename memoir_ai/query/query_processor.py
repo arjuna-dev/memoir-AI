@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..classification.category_manager import CategoryManager
 from ..exceptions import ClassificationError, ValidationError
+from ..llm.interactions import select_contextual_helper_for_query
 from .chunk_retrieval import ChunkRetriever, QueryResult, ResultConstructor
 from .query_strategy_engine import (
     QueryExecutionResult,
@@ -70,11 +71,11 @@ class QueryProcessor:
     async def process_query(
         self,
         query_text: str,
-        contextual_helper: str,
         strategy: QueryStrategy = QueryStrategy.ONE_SHOT,
         strategy_params: Optional[Dict[str, Any]] = None,
         chunk_limit_per_path: Optional[int] = None,
         offset: int = 0,
+        contextual_helper: Optional[str] = None,
     ) -> QueryResult:
         """
         Process a complete natural language query.
@@ -83,7 +84,6 @@ class QueryProcessor:
             query_text: Natural language query
             strategy: Query traversal strategy
             strategy_params: Parameters for the strategy
-            contextual_helper: Additional context for classification
             chunk_limit_per_path: Maximum chunks per category path
             offset: Offset for pagination
 
@@ -94,13 +94,70 @@ class QueryProcessor:
 
         logger.info(f"Processing query: '{query_text[:50]}...' using {strategy.value}")
 
+        # Determine contextual helper (can be provided explicitly)
+        contextual_helper_value: str = ""
+
+        if contextual_helper and contextual_helper.strip():
+            contextual_helper_value = contextual_helper.strip()
+        else:
+            contextual_helper_value = ""
+
+        # Determine contextual helper based on level one categories (best-effort)
+        try:
+            level_one_categories = self.category_manager.get_existing_categories(
+                level=1
+            )
+        except Exception:
+            level_one_categories = []
+
+        if not isinstance(level_one_categories, (list, tuple)):
+            level_one_categories = []
+
+        if not level_one_categories:
+            contextual_helper_value = contextual_helper_value or ""
+        elif len(level_one_categories) == 1 and not contextual_helper_value:
+            root_category = level_one_categories[0]
+            metadata = getattr(root_category, "metadata_json", {}) or {}
+            contextual_helper_value = metadata.get("helper_text", root_category.name)
+        elif not contextual_helper_value:
+            try:
+                selection, _helper_metadata = await select_contextual_helper_for_query(
+                    query_text=query_text,
+                    contextual_helpers=level_one_categories,
+                    model_name=self.model_name,
+                )
+
+                selected_name = selection.category.strip()
+                root_category = None
+                for category in level_one_categories:
+                    if category.name.strip().lower() == selected_name.lower():
+                        root_category = category
+                        break
+
+                if root_category:
+                    metadata = getattr(root_category, "metadata_json", {}) or {}
+                    contextual_helper_value = metadata.get(
+                        "helper_text", root_category.name
+                    )
+                else:
+                    contextual_helper_value = selected_name
+
+                logger.info(
+                    "Selected contextual helper '%s' with relevance score %s",
+                    selection.category,
+                    selection.ranked_relevance,
+                )
+            except Exception as error:  # pragma: no cover - defensive logging
+                logger.warning("Failed to select contextual helper via LLM: %s", error)
+                contextual_helper_value = contextual_helper_value or ""
+
         try:
             # Step 1: Execute query strategy to get category paths
             strategy_result = await self.strategy_engine.execute_strategy(
                 query_text=query_text,
                 strategy=strategy,
+                contextual_helper=contextual_helper_value,
                 strategy_params=strategy_params or {},
-                contextual_helper=contextual_helper,
             )
 
             logger.info(

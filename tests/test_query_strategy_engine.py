@@ -163,14 +163,6 @@ class TestQueryStrategyEngine:
 
             mock_select.side_effect = [
                 (
-                    QueryCategorySelection(category="Technology", ranked_relevance=5),
-                    {
-                        "latency_ms": 42,
-                        "timestamp": datetime.now(),
-                        "prompt": "",
-                    },
-                ),
-                (
                     QueryCategorySelection(category="AI", ranked_relevance=5),
                     {
                         "latency_ms": 41,
@@ -188,10 +180,9 @@ class TestQueryStrategyEngine:
                 ),
             ]
 
-            # Mock category manager responses
+            # Mock category manager responses (current implementation starts at level 2)
             self.mock_category_manager.get_existing_categories.side_effect = [
-                self.level1_categories,  # Level 1
-                self.level2_tech_categories,  # Level 2 under Technology
+                self.level2_tech_categories,  # Level 2 (no parent, so all level 2 categories)
                 self.level3_ai_categories,  # Level 3 under AI
                 [],  # Level 4 (no more categories)
             ]
@@ -209,17 +200,15 @@ class TestQueryStrategyEngine:
             assert len(result.category_paths) > 0
             assert len(result.llm_responses) > 0
 
-            # Check that we got a complete path
+            # Check that we got a complete path (current implementation starts at level 2)
             path = result.category_paths[0]
-            assert len(path.path) == 3  # Technology > AI > ML
-            assert path.path[0].name == "Technology"
-            assert path.path[1].name == "AI"
-            assert path.path[2].name == "ML"
+            assert len(path.path) == 2  # AI > ML (starts at level 2)
+            assert path.path[0].name == "AI"
+            assert path.path[1].name == "ML"
 
             calls = self.mock_category_manager.get_existing_categories.call_args_list
-            assert calls[0].args == (1, None)
-            assert calls[1].args == (2, 1)
-            assert calls[2].args == (3, 3)
+            assert calls[0].args == (2, None)  # Level 2 with no parent
+            assert calls[1].args == (3, 3)  # Level 3 under AI
 
     def test_deduplicate_paths(self) -> None:
         """Test path deduplication."""

@@ -75,6 +75,15 @@ class QueryCategorySelection(BaseModel):
     ranked_relevance: int = Field(description="Relevance ranking from 1 to N", ge=1)
 
 
+class QueryCategorySelectionList(BaseModel):
+    """Schema for returning multiple query-based category selections."""
+
+    selections: List[QueryCategorySelection] = Field(
+        description="Ordered list of category selections from most to least relevant",
+        min_length=1,
+    )
+
+
 # Summarization Schemas
 class ChunkSummary(BaseModel):
     """Schema for individual chunk summary."""
@@ -244,6 +253,7 @@ CLASSIFICATION_SCHEMAS = {
     "batch": BatchClassificationResponse,
     "hierarchical_batch": HierarchicalBatchClassificationResponse,
     "query": QueryCategorySelection,
+    "query_multi": QueryCategorySelectionList,
 }
 
 SUMMARIZATION_SCHEMAS = {

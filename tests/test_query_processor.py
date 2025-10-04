@@ -45,11 +45,16 @@ class TestQueryProcessor:
             default_chunk_limit=100,
         )
 
-        # Mock categories and paths
+        # Mock contextual helpers (level 1) and actual categories (level 2+)
+        self.contextual_helpers = [
+            Category(id=1, name="Tech Article", level=1, parent_id=None),
+        ]
+
+        # Actual category hierarchy starts at level 2
         self.categories = [
-            Category(id=1, name="Technology", level=1),
-            Category(id=2, name="AI", level=2, parent_id=1),
-            Category(id=3, name="ML", level=3, parent_id=2),
+            Category(id=2, name="Technology", level=2, parent_id=None),
+            Category(id=3, name="AI", level=3, parent_id=2),
+            Category(id=4, name="ML", level=4, parent_id=3),
         ]
 
         self.category_path = CategoryPath(path=self.categories, ranked_relevance=5)
@@ -91,7 +96,7 @@ class TestQueryProcessor:
             chunk_id=1,
             text_content="Machine learning content",
             category_path="Technology > AI > ML",
-            category_id_path="1/2/3",
+            category_id_path="2/3/4",  # Updated to reflect level 2+ IDs
             ranked_relevance=5,
             created_at=datetime.now(),
         )
@@ -138,19 +143,23 @@ class TestQueryProcessor:
             mock_constructor.return_value = expected_result
             mock_validator.return_value = []  # No validation errors
 
+            # Mock category manager to return contextual helpers at level 1
+            self.mock_category_manager.get_existing_categories.return_value = (
+                self.contextual_helpers
+            )
+
             # Execute query
             result = await self.processor.process_query(
                 query_text="machine learning algorithms",
                 strategy=QueryStrategy.ONE_SHOT,
-                contextual_helper="test context",
             )
 
             # Verify calls
             mock_strategy.assert_called_once_with(
                 query_text="machine learning algorithms",
                 strategy=QueryStrategy.ONE_SHOT,
+                contextual_helper="Tech Article",  # From level-1 contextual helper
                 strategy_params={},
-                contextual_helper="test context",
             )
 
             mock_retriever.assert_called_once_with(
@@ -201,12 +210,16 @@ class TestQueryProcessor:
             )
             mock_validator.return_value = []
 
+            # Mock category manager to return contextual helpers at level 1
+            self.mock_category_manager.get_existing_categories.return_value = (
+                self.contextual_helpers
+            )
+
             # Execute with custom parameters
             await self.processor.process_query(
                 query_text="test query",
                 strategy=QueryStrategy.WIDE_BRANCH,
                 strategy_params={"n": 3},
-                contextual_helper="test context",
                 chunk_limit_per_path=50,
                 offset=10,
             )
@@ -215,8 +228,8 @@ class TestQueryProcessor:
             mock_strategy.assert_called_once_with(
                 query_text="test query",
                 strategy=QueryStrategy.WIDE_BRANCH,
+                contextual_helper="Tech Article",  # From level-1 contextual helper
                 strategy_params={"n": 3},
-                contextual_helper="test context",
             )
 
             # Verify retriever was called with correct parameters
@@ -236,7 +249,6 @@ class TestQueryProcessor:
             result = await self.processor.process_query(
                 query_text="test query",
                 strategy=QueryStrategy.ONE_SHOT,
-                contextual_helper="test context",
             )
 
             # Verify error result

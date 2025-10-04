@@ -116,10 +116,12 @@ class TestDatabaseManager:
         assert "categories" in info
         assert "chunks" in info
         assert "contextual_helpers" in info
+        assert "project_metadata" in info
         assert "category_limits" in info
 
         assert info["categories"]["row_count"] == 1
         assert info["chunks"]["row_count"] == 0
+        assert info["project_metadata"]["row_count"] == 0
 
         db_manager.close()
 

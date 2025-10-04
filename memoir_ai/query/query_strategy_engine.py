@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -22,11 +23,16 @@ from pydantic_ai import Agent
 
 from ..database.models import Category
 from ..exceptions import ClassificationError, ValidationError
-from ..llm.agents import create_query_classification_agent
-from ..llm.interactions import select_category_for_query
+from ..llm.agents import (
+    create_query_classification_agent,
+    create_query_multi_selection_agent,
+)
+from ..llm.interactions import select_categories_for_query, select_category_for_query
 
 if TYPE_CHECKING:
     from ..classification.category_manager import CategoryManager
+
+logger = logging.getLogger(__name__)
 
 
 class QueryStrategy(Enum):
@@ -106,6 +112,7 @@ class QueryStrategyEngine:
         self.session = getattr(category_manager, "db_session", None)
         self.hierarchy_depth = getattr(category_manager, "hierarchy_depth", 3)
         self._query_agent: Agent | None = None
+        self._query_multi_agent: Agent | None = None
 
     async def execute_strategy(
         self,
@@ -133,9 +140,9 @@ class QueryStrategyEngine:
         else:
             paths, responses = await self._execute_branching_strategy(
                 query_text=query_text,
+                contextual_helper=contextual_helper,
                 strategy=strategy,
                 params=params,
-                contextual_helper=contextual_helper,
             )
 
         deduped_paths = self._validate_paths(self._deduplicate_paths(paths))
@@ -158,7 +165,10 @@ class QueryStrategyEngine:
         selected_categories: List[Category] = []
         parent: Optional[Category] = None
 
-        for level in range(1, self.hierarchy_depth + 1):
+        # We start at level 2 since level 1 is handled separately and reserved for contextual helpers
+        start_level = 2
+
+        for level in range(start_level, self.hierarchy_depth + 1):
             categories = self.category_manager.get_existing_categories(
                 level, parent.id if parent else None
             )
@@ -173,13 +183,18 @@ class QueryStrategyEngine:
             )
 
             responses.append(selection["response"])
+            if not selection["results"]:
+                raise ClassificationError(
+                    "LLM did not return any category selection",
+                    model=self.model_name,
+                )
 
             chosen_category = self._match_category_by_name(
-                categories, selection["result"].category
+                categories, selection["results"][0].category
             )
             if not chosen_category:
                 raise ClassificationError(
-                    f"LLM selected unknown category '{selection['result'].category}'",
+                    f"LLM selected unknown category '{selection['results'][0].category}'",
                     model=self.model_name,
                 )
 
@@ -201,9 +216,9 @@ class QueryStrategyEngine:
     async def _execute_branching_strategy(
         self,
         query_text: str,
+        contextual_helper: str,
         strategy: QueryStrategy,
         params: Dict[str, Any],
-        contextual_helper: str,
     ) -> Tuple[List[CategoryPath], List[LLMCallResponse]]:
         """Execute a branching strategy using simple deterministic expansion."""
 
@@ -222,54 +237,65 @@ class QueryStrategyEngine:
             return 1
 
         responses: List[LLMCallResponse] = []
-        active_paths: List[List[Category]] = [[]]
+        path_records: List[
+            Tuple[List[Category], Optional[QueryClassificationResult]]
+        ] = [([], None)]
 
-        for level in range(1, self.hierarchy_depth + 1):
-            new_paths: List[List[Category]] = []
+        # We start at level 2 since level 1 is handled separately and reserved for contextual helpers
+        start_level = 2
 
-            for path in active_paths:
+        for level in range(start_level, self.hierarchy_depth + 1):
+            new_records: List[
+                Tuple[List[Category], Optional[QueryClassificationResult]]
+            ] = []
+
+            for path, _ in path_records:
+                # Get last category in the current path to use as parent (if available, else root)
                 parent_category = path[-1] if path else None
                 categories = self.category_manager.get_existing_categories(
                     level, parent_category.id if parent_category else None
                 )
+                # If no categories are found, raise an error
                 if not categories:
                     continue
+                # Get how many categories to select at this level
+                top_k = selections_for_level(level - 1)
+                # Ensure top_k is not greater than the number of available categories
+                top_k = min(len(categories), top_k)
 
                 selection = await self._call_selection_agent(
                     query_text=query_text,
                     contextual_helper=contextual_helper,
                     level=level,
                     available_categories=categories,
+                    top_k=top_k,
                 )
                 responses.append(selection["response"])
 
-                # Deterministic fallback selection using category ordering
-                ordered_categories = sorted(categories, key=lambda c: c.name.lower())
-                limit = min(len(ordered_categories), selections_for_level(level - 1))
+                for result in selection["results"]:
+                    chosen_category = self._match_category_by_name(
+                        categories, result.category
+                    )
+                    if not chosen_category:
+                        logger.warning(
+                            "LLM selected unknown category '%s' at level %s",
+                            result.category,
+                            level,
+                        )
+                        continue
 
-                for candidate in ordered_categories[:limit]:
-                    new_paths.append(path + [candidate])
+                    new_records.append((path + [chosen_category], result))
 
-            if not new_paths:
+            if not new_records:
                 break
-            active_paths = new_paths
+            path_records = new_records
 
         category_paths: List[CategoryPath] = []
-        if responses:
-            relevant_responses = responses[-len(active_paths) :]
-        else:
-            relevant_responses = []
-
-        for path, res in zip(active_paths, relevant_responses):
+        for path, result in path_records:
             if not path:
                 continue
-            rank = res.llm_output.ranked_relevance if res.llm_output else 0
+            rank = result.ranked_relevance if result else 0
             category_paths.append(CategoryPath(path=path, ranked_relevance=rank))
-
-        if not responses:
-            for path in active_paths:
-                if path:
-                    category_paths.append(CategoryPath(path=path, ranked_relevance=0))
 
         return category_paths, responses
 
@@ -279,29 +305,66 @@ class QueryStrategyEngine:
         contextual_helper: str,
         level: int,
         available_categories: Sequence[Category],
+        top_k: int = 1,
     ) -> Dict[str, Any]:
-        """Call the LLM agent to select a category."""
+        """Call the LLM agent to select one or more categories."""
 
-        if self._query_agent is None:
-            self._query_agent = create_query_classification_agent(self.model_name)
+        top_k = max(1, top_k)
 
-        selection, metadata = await select_category_for_query(
+        if top_k == 1:
+            if self._query_agent is None:
+                self._query_agent = create_query_classification_agent(self.model_name)
+
+            selection, metadata = await select_category_for_query(
+                query_text=query_text,
+                level=level,
+                available_categories=available_categories,
+                contextual_helper=contextual_helper,
+                agent=self._query_agent,
+                model_name=self.model_name,
+            )
+
+            result = QueryClassificationResult(
+                category=selection.category, ranked_relevance=selection.ranked_relevance
+            )
+
+            return {
+                "results": [result],
+                "response": LLMCallResponse(
+                    llm_output=result,
+                    timestamp=metadata.get("timestamp", datetime.now()),
+                    latency_ms=metadata.get("latency_ms", 0),
+                ),
+            }
+
+        if self._query_multi_agent is None:
+            self._query_multi_agent = create_query_multi_selection_agent(
+                self.model_name
+            )
+
+        selections, metadata = await select_categories_for_query(
             query_text=query_text,
             level=level,
             available_categories=available_categories,
-            contextual_helper=contextual_helper,
-            agent=self._query_agent,
+            contextual_helper=contextual_helper or "",
+            selection_count=top_k,
+            agent=self._query_multi_agent,
             model_name=self.model_name,
         )
 
-        result = QueryClassificationResult(
-            category=selection.category, ranked_relevance=selection.ranked_relevance
-        )
+        results = [
+            QueryClassificationResult(
+                category=selection.category, ranked_relevance=selection.ranked_relevance
+            )
+            for selection in selections
+        ]
+
+        primary_result = results[0] if results else None
 
         return {
-            "result": result,
+            "results": results,
             "response": LLMCallResponse(
-                llm_output=result,
+                llm_output=primary_result,
                 timestamp=metadata.get("timestamp", datetime.now()),
                 latency_ms=metadata.get("latency_ms", 0),
             ),

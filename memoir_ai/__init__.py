@@ -6,7 +6,14 @@ try:  # Core may import optional modules not yet implemented (e.g., iterative cl
     from .core import MemoirAI  # type: ignore
 except Exception:  # pragma: no cover
     MemoirAI = None  # type: ignore
-from .database import Category, CategoryLimits, Chunk, ContextualHelper, DatabaseManager
+from .database import (
+    Category,
+    CategoryLimits,
+    Chunk,
+    ContextualHelper,
+    DatabaseManager,
+    ProjectMetadata,
+)
 from .exceptions import (
     ClassificationError,
     ConfigurationError,
@@ -51,6 +58,7 @@ __all__ = [
     "Category",
     "Chunk",
     "ContextualHelper",
+    "ProjectMetadata",
     "CategoryLimits",
     "TextChunker",
     "TextChunk",

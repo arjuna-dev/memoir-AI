@@ -6,6 +6,7 @@ chunks through hierarchy levels sequentially, integrating contextual helpers
 and category management.
 """
 
+import hashlib
 import logging
 import time
 from dataclasses import dataclass
@@ -127,6 +128,7 @@ class IterativeClassificationWorkflow:
         chunks: List[TextChunk],
         contextual_helper: str,
         source_id: Optional[str] = None,
+        root_category: Optional[Category] = None,
     ) -> List[IterativeClassificationResult]:
         """
         Classify multiple chunks through the complete hierarchy.
@@ -158,7 +160,10 @@ class IterativeClassificationWorkflow:
 
                 try:
                     result = await self._classify_single_chunk(
-                        chunk, contextual_helper, workflow_id
+                        chunk,
+                        contextual_helper,
+                        workflow_id,
+                        root_category=root_category,
                     )
                     results.append(result)
                     total_llm_calls += result.llm_calls
@@ -208,6 +213,7 @@ class IterativeClassificationWorkflow:
         chunks: List[TextChunk],
         contextual_helper: str,
         source_id: Optional[str] = None,
+        root_category: Optional[Category] = None,
     ) -> List[IterativeClassificationResult]:
         """
         Classify all chunks using hierarchical batch classification in a single LLM call.
@@ -221,7 +227,7 @@ class IterativeClassificationWorkflow:
             List of classification results for all chunks
         """
         if not chunks:
-            return []
+            raise Exception("No chunks provided for classification")
 
         workflow_id = f"batch_workflow_{int(time.time())}_{len(chunks)}"
         start_time = time.time()
@@ -257,7 +263,7 @@ class IterativeClassificationWorkflow:
                 try:
                     # Extract category path from hierarchical tree
                     category_path = self._extract_category_path_from_tree(
-                        classification.category_tree
+                        classification.category_tree, root_category=root_category
                     )
 
                     if category_path:
@@ -353,8 +359,139 @@ class IterativeClassificationWorkflow:
 
             return failed_results
 
+    def ensure_root_context_category(
+        self,
+        helper_text: str,
+        token_count: int,
+        *,
+        is_user_provided: bool,
+        source_id: Optional[str] = None,
+    ) -> Category:
+        """Ensure a Level 1 category exists for the provided contextual helper."""
+
+        normalized_text = helper_text.strip()
+        if not normalized_text:
+            raise ValidationError(
+                "Contextual helper text cannot be empty",
+                field="contextual_helper",
+                value=helper_text,
+            )
+
+        slug = self._build_root_category_slug(normalized_text)
+
+        existing_category: Optional[Category] = None
+
+        if source_id:
+            existing_category = self._find_root_category_for_source(source_id)
+
+        if not existing_category:
+            existing_category = (
+                self.db_session.query(Category).filter(Category.slug == slug).first()
+            )
+
+        metadata = {
+            "helper_text": normalized_text,
+            "helper_token_count": token_count,
+            "is_user_provided": is_user_provided,
+        }
+
+        if source_id:
+            sources: set[str] = set()
+            if existing_category and existing_category.metadata_json:
+                existing_sources = (
+                    existing_category.metadata_json.get("source_ids") or []
+                )
+                sources.update(existing_sources)
+            sources.add(source_id)
+            metadata["source_ids"] = sorted(sources)
+
+        metadata["updated_at"] = datetime.utcnow().isoformat()
+
+        name = self._build_root_category_name(normalized_text)
+
+        if existing_category:
+            existing_category.name = name
+            existing_category.slug = slug
+            merged_metadata = existing_category.metadata_json or {}
+            merged_metadata.update(metadata)
+            existing_category.metadata_json = merged_metadata
+            existing_category.updated_at = datetime.utcnow()
+            self.db_session.flush()
+            return existing_category
+
+        if not self.category_manager.can_create_category(level=1, parent_id=None):
+            raise ValidationError(
+                "Category limit reached at level 1. Cannot create new contextual helper category.",
+                field="category_limit",
+                value={"level": 1},
+            )
+
+        category = Category(
+            name=name,
+            level=1,
+            parent_id=None,
+            slug=slug,
+            metadata_json=metadata,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        self.db_session.add(category)
+        self.db_session.flush()
+        return category
+
+    def _build_root_category_slug(self, helper_text: str) -> str:
+        """Create a deterministic slug for contextual helper categories."""
+
+        helper_hash = hashlib.sha1(helper_text.encode("utf-8")).hexdigest()
+        return f"context-{helper_hash[:16]}"
+
+    @staticmethod
+    def _build_root_category_name(helper_text: str) -> str:
+        """Generate a category name derived from the helper text."""
+
+        normalized = " ".join(helper_text.split())
+        if len(normalized) <= 240:
+            return normalized
+        return normalized.rstrip()
+
+    def _find_root_category_for_source(self, source_id: str) -> Optional[Category]:
+        """Locate the root category associated with a specific source."""
+
+        chunk = (
+            self.db_session.query(Chunk)
+            .filter(Chunk.source_id == source_id)
+            .order_by(Chunk.created_at.desc())
+            .first()
+        )
+
+        if not chunk:
+            return None
+
+        category: Optional[Category] = (
+            self.db_session.query(Category)
+            .filter(Category.id == chunk.category_id)
+            .first()
+        )
+
+        if not category:
+            return None
+
+        while category.parent_id:
+            category = (
+                self.db_session.query(Category)
+                .filter(Category.id == category.parent_id)
+                .first()
+            )
+            if category is None:
+                break
+
+        return category
+
     def _extract_category_path_from_tree(
-        self, category_tree: CategoryTree | None
+        self,
+        category_tree: CategoryTree | None,
+        *,
+        root_category: Optional[Category] = None,
     ) -> List[Category]:
         """
         Extract and create category path from hierarchical category tree.
@@ -365,13 +502,29 @@ class IterativeClassificationWorkflow:
         Returns:
             List of Category objects representing the path from root to leaf
         """
-        category_path: list = []
+        category_path: List[Category] = []
         current_tree = category_tree
         parent_id = None
+
+        if root_category:
+            category_path.append(root_category)
+            parent_id = root_category.id
+            if (
+                current_tree
+                and current_tree.name.strip().lower() == root_category.name.lower()
+            ):
+                current_tree = current_tree.child
 
         while current_tree:
             # Get or create category at current level
             level = len(category_path) + 1
+            max_depth = getattr(self.category_manager, "hierarchy_depth", 3)
+            if level > max_depth:
+                logger.warning(
+                    "Category tree exceeds configured hierarchy depth (%s). Truncating extra levels.",
+                    max_depth,
+                )
+                break
             category_name = current_tree.name.strip()
 
             if not category_name:
@@ -425,6 +578,8 @@ class IterativeClassificationWorkflow:
         chunk: TextChunk,
         contextual_helper: str,
         workflow_id: str,
+        *,
+        root_category: Optional[Category] = None,
     ) -> IterativeClassificationResult:
         """
         Classify a single chunk through all hierarchy levels.
@@ -443,9 +598,25 @@ class IterativeClassificationWorkflow:
         total_llm_calls = 0
         current_parent_id = None
 
+        if root_category:
+            category_path.append(root_category)
+            current_parent_id = root_category.id
+            level_results.append(
+                {
+                    "level": 1,
+                    "category_name": root_category.name,
+                    "category_id": root_category.id,
+                    "existing_categories": 1,
+                    "can_create_new": False,
+                    "latency_ms": 0,
+                    "llm_model": None,
+                }
+            )
+
         try:
             # Process each level sequentially
-            for level in range(1, self.category_manager.hierarchy_depth + 1):
+            start_level = 1 if not root_category else 2
+            for level in range(start_level, self.category_manager.hierarchy_depth + 1):
                 level_start_time = time.time()
 
                 # Get existing categories at this level

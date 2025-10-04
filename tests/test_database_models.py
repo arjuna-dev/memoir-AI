@@ -15,6 +15,7 @@ from memoir_ai.database.models import (
     CategoryLimits,
     Chunk,
     ContextualHelper,
+    ProjectMetadata,
 )
 from memoir_ai.exceptions import ValidationError
 
@@ -302,6 +303,34 @@ class TestContextualHelperModel:
             source_id="test_source", helper_text="Second helper", token_count=2
         )
         db_session.add(helper2)
+
+        with pytest.raises(IntegrityError):
+            db_session.commit()
+
+
+class TestProjectMetadataModel:
+    """Test ProjectMetadata model functionality."""
+
+    def test_create_metadata_entry(self, db_session) -> None:
+        """Ensure metadata entries can be created and retrieved."""
+        metadata = ProjectMetadata(key="hierarchy_depth", value_json={"value": 3})
+
+        db_session.add(metadata)
+        db_session.commit()
+
+        assert metadata.key == "hierarchy_depth"
+        assert metadata.value_json["value"] == 3
+        assert metadata.created_at is not None
+        assert metadata.updated_at is not None
+
+    def test_unique_metadata_key(self, db_session) -> None:
+        """Test unique key constraint for project metadata."""
+        entry1 = ProjectMetadata(key="hierarchy_depth", value_json={"value": 3})
+        db_session.add(entry1)
+        db_session.commit()
+
+        entry2 = ProjectMetadata(key="hierarchy_depth", value_json={"value": 4})
+        db_session.add(entry2)
 
         with pytest.raises(IntegrityError):
             db_session.commit()

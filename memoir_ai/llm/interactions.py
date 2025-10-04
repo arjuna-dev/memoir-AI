@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import UTC, datetime
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,11 +17,13 @@ from .agents import (
     create_classification_agent,
     create_hierarchical_batch_classification_agent,
     create_query_classification_agent,
+    create_query_multi_selection_agent,
 )
 from .schemas import (
     CategorySelection,
     HierarchicalBatchClassificationResponse,
     QueryCategorySelection,
+    QueryCategorySelectionList,
 )
 
 
@@ -121,26 +123,38 @@ def build_query_category_prompt(
     level: int,
     available_categories: Sequence[Any],
     contextual_helper: str,
+    selection_count: int = 1,
 ) -> str:
-    """Create the prompt used when selecting categories for a user query."""
+    """Create the prompt used when selecting categories for a user query.
+
+    Raises:
+        LLMError: If no categories are available at the specified level
+    """
 
     context_parts: list[str] = [f"Classification Level: {level}"]
 
-    if contextual_helper:
-        context_parts.append(f"Additional Context: {contextual_helper}")
-
     category_names = _extract_category_names(available_categories)
-    if category_names:
-        context_parts.append("Available Categories: " + ", ".join(category_names))
-    else:
-        context_parts.append(
-            "No explicit categories provided. You must still return a best guess."
+
+    if level == 1:
+        raise LLMError(
+            f"Level should be at least 2 and not {level} since level 1 is for contextual helpers only."
         )
 
-    context_parts.append(
-        "Select the single most relevant category for the user query and provide a "
-        "ranked relevance score from 1 (least relevant) to 10 (most relevant)."
-    )
+    context_parts.append(f"Additional Context: {contextual_helper}")
+    context_parts.append("Available Categories: " + ", ".join(category_names))
+    if selection_count == 1:
+        context_parts.append(
+            "Select the single most relevant category for the user query and provide a "
+            "ranked relevance score from 1 (least relevant) to 10 (most relevant)."
+        )
+    else:
+        context_parts.append(
+            f"Select the top {selection_count} categories for the user query. Return them from most to least relevant and provide a "
+            "ranked relevance score from 1 (least relevant) to 10 (most relevant) for each."
+        )
+        context_parts.append(
+            "Do not create new categories; every selection must come from the provided list. Return it matching the format exactly, including punctuation and capitalization."
+        )
 
     context_section = "\n".join(context_parts)
 
@@ -148,7 +162,44 @@ def build_query_category_prompt(
 
 User Query: {query_text}
 
-Return the category name and relevance score only."""
+Return the category name(s) and relevance score(s) only."""
+
+    return prompt
+
+
+def build_query_contextual_helper_prompt(
+    *,
+    query_text: str,
+    contextual_helpers: Sequence[Any],
+) -> str:
+    """Create the prompt used when selecting a contextual helper at level 1."""
+
+    helper_entries: List[str] = []
+    for idx, helper in enumerate(contextual_helpers, start=1):
+        name = getattr(helper, "name", None)
+        metadata = getattr(helper, "metadata_json", {}) or {}
+        helper_text = metadata.get("helper_text")
+
+        parts = [f"Option {idx}:"]
+        if name:
+            parts.append(f"Name: {name}")
+        if helper_text:
+            parts.append(f"Context: {helper_text}")
+        helper_entries.append(" ".join(parts))
+
+    if not helper_entries:
+        raise LLMError("No contextual helpers available for selection at level 1.")
+
+    options_section = "\n".join(helper_entries)
+
+    prompt = f"""You are selecting the most relevant contextual helper (root category) for a user query.
+
+Available Contextual Helpers:
+{options_section}
+
+User Query: {query_text}
+
+Return the helper name and a relevance score from 1 (least relevant) to 10 (most relevant)."""
 
     return prompt
 
@@ -231,6 +282,7 @@ async def select_category_for_query(
         level=level,
         available_categories=available_categories,
         contextual_helper=contextual_helper,
+        selection_count=1,
     )
 
     query_agent = agent or create_query_classification_agent(model_name)
@@ -270,9 +322,149 @@ async def select_category_for_query(
         "model_name": model_name or getattr(query_agent, "model", None),
         "level": level,
         "available_category_names": _extract_category_names(available_categories),
+        "selection_count": 1,
     }
 
     return selection, metadata
+
+
+async def select_categories_for_query(
+    *,
+    query_text: str,
+    level: int,
+    available_categories: Sequence[Any],
+    contextual_helper: str,
+    selection_count: int,
+    agent: Optional[Agent] = None,
+    model_name: Optional[str] = None,
+) -> Tuple[List[QueryCategorySelection], Dict[str, Any]]:
+    """Ask an LLM to select multiple categories for a natural language query."""
+
+    if selection_count <= 0:
+        raise ValueError("selection_count must be positive")
+
+    available_names = _extract_category_names(available_categories)
+    if not available_names:
+        if level == 1:
+            raise LLMError(
+                "No contextual helpers (Level 1 categories) available for query selection. "
+                "This indicates that no documents have been ingested or the database is empty."
+            )
+        raise LLMError(
+            f"No categories available at level {level} for query selection. "
+            f"This indicates a database inconsistency or incomplete category hierarchy."
+        )
+
+    effective_count = min(selection_count, len(available_names))
+
+    prompt = build_query_category_prompt(
+        query_text=query_text,
+        level=level,
+        available_categories=available_categories,
+        contextual_helper=contextual_helper,
+        selection_count=effective_count,
+    )
+
+    query_agent = agent or create_query_multi_selection_agent(model_name)
+
+    start_time = time.perf_counter()
+    try:
+        response = await query_agent.run_async(prompt)
+    except Exception as exc:  # pragma: no cover - network/runtime specific
+        raise LLMError(
+            f"Failed to select categories for query at level {level}: {exc}"
+        ) from exc
+
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    data = getattr(response, "data", None)
+    if data is None:
+        data = getattr(response, "output", None)
+
+    if isinstance(data, QueryCategorySelectionList):
+        selections = data.selections
+    elif isinstance(data, QueryCategorySelection):
+        selections = [data]
+    else:
+        raise LLMError(
+            "Query multi-selection agent returned an unexpected response type."
+        )
+
+    if not selections:
+        raise LLMError("Query multi-selection agent returned no selections.")
+
+    normalized: List[QueryCategorySelection] = []
+    seen: set[str] = set()
+    for selection in selections:
+        name = selection.category.strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(selection)
+        if len(normalized) >= effective_count:
+            break
+
+    if not normalized:
+        raise LLMError("Query multi-selection agent did not return valid categories.")
+
+    metadata = {
+        "prompt": prompt,
+        "latency_ms": latency_ms,
+        "timestamp": datetime.now(UTC),
+        "model_name": model_name or getattr(query_agent, "model", None),
+        "level": level,
+        "available_category_names": available_names,
+        "selection_count": len(normalized),
+    }
+
+    return normalized, metadata
+
+
+async def select_contextual_helper_for_query(
+    *,
+    query_text: str,
+    contextual_helpers: Sequence[Any],
+    agent: Optional[Agent] = None,
+    model_name: Optional[str] = None,
+) -> Tuple[QueryCategorySelection, Dict[str, Any]]:
+    """Ask an LLM to select the most relevant contextual helper (level 1)."""
+
+    prompt = build_query_contextual_helper_prompt(
+        query_text=query_text, contextual_helpers=contextual_helpers
+    )
+
+    helper_agent = agent or create_query_classification_agent(model_name)
+
+    start_time = time.perf_counter()
+    try:
+        response = await helper_agent.run_async(prompt)
+    except Exception as exc:  # pragma: no cover - network/runtime specific
+        raise LLMError(f"Failed to select contextual helper for query: {exc}") from exc
+
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    data = getattr(response, "data", None)
+    if data is None:
+        data = getattr(response, "output", None)
+
+    if not isinstance(data, QueryCategorySelection):
+        raise LLMError("Contextual helper selection agent returned invalid response")
+
+    if not data.category.strip():
+        raise LLMError("Contextual helper selection returned empty category")
+
+    metadata = {
+        "prompt": prompt,
+        "latency_ms": latency_ms,
+        "timestamp": datetime.now(UTC),
+        "model_name": model_name or getattr(helper_agent, "model", None),
+        "available_contextual_helpers": [
+            getattr(helper, "name", None) or "" for helper in contextual_helpers
+        ],
+    }
+
+    return data, metadata
 
 
 async def classify_all_chunks_with_llm(

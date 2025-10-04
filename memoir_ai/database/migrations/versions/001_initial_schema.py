@@ -110,6 +110,20 @@ def upgrade() -> None:
         "idx_contextual_helpers_source_id", "contextual_helpers", ["source_id"]
     )
 
+    # Create project_metadata table
+    op.create_table(
+        "project_metadata",
+        sa.Column("key", sa.String(length=128), nullable=False),
+        sa.Column("value_json", sa.JSON(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("key"),
+    )
+
+    op.create_index(
+        "idx_project_metadata_key", "project_metadata", ["key"], unique=True
+    )
+
     # Create category_limits table
     op.create_table(
         "category_limits",
@@ -128,6 +142,8 @@ def downgrade() -> None:
     """Drop all tables."""
 
     # Drop tables in reverse order to handle foreign key constraints
+    op.drop_index("idx_project_metadata_key", table_name="project_metadata")
+    op.drop_table("project_metadata")
     op.drop_table("category_limits")
     op.drop_table("contextual_helpers")
     op.drop_table("chunks")

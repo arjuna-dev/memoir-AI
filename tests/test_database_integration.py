@@ -115,6 +115,8 @@ class TestDatabaseIntegration:
         assert info["categories"]["row_count"] == 3
         assert info["chunks"]["row_count"] == 2
         assert info["contextual_helpers"]["row_count"] == 1
+        assert "project_metadata" in info
+        assert info["project_metadata"]["row_count"] == 0
         assert info["category_limits"]["row_count"] == 1
 
         db_manager.close()

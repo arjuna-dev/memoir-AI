@@ -44,6 +44,7 @@ class TestMigrationManager:
         assert "categories" in table_info
         assert "chunks" in table_info
         assert "contextual_helpers" in table_info
+        assert "project_metadata" in table_info
         assert "category_limits" in table_info
 
         migration_manager.close()

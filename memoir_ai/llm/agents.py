@@ -27,6 +27,7 @@ from .schemas import (
     HierarchicalBatchClassificationResponse,
     ModelConfiguration,
     QueryCategorySelection,
+    QueryCategorySelectionList,
     SummarizationResponse,
     supports_native_output,
 )
@@ -194,6 +195,33 @@ class AgentFactory:
             config=effective_config,
             agent_name="QueryCategorySelection",
             description="Select relevant categories based on natural language queries",
+        )
+
+        self._agent_cache[cache_key] = agent
+        return agent
+
+    def create_query_multi_selection_agent(
+        self,
+        model_name: Optional[str] = None,
+        config: Optional[ModelConfiguration] = None,
+    ) -> Agent:
+        """Create an agent for multi-category query selection."""
+
+        effective_config = self._get_effective_config(model_name, config)
+        cache_key = (
+            f"query_multi_selection_{effective_config.model_name}_"
+            f"{effective_config.temperature}"
+        )
+
+        if cache_key in self._agent_cache:
+            return self._agent_cache[cache_key]
+
+        agent = self._create_agent_with_schema(
+            schema=QueryCategorySelectionList,
+            model_name=effective_config.model_name,
+            config=effective_config,
+            agent_name="QueryCategoryMultiSelection",
+            description="Select multiple relevant categories for a user query in order of relevance",
         )
 
         self._agent_cache[cache_key] = agent
@@ -525,6 +553,13 @@ def create_query_classification_agent(
 ) -> Agent:
     """Create a query classification agent using the global factory."""
     return get_agent_factory().create_query_classification_agent(model_name, config)
+
+
+def create_query_multi_selection_agent(
+    model_name: Optional[str] = None, config: Optional[ModelConfiguration] = None
+) -> Agent:
+    """Create a multi-category query selection agent using the global factory."""
+    return get_agent_factory().create_query_multi_selection_agent(model_name, config)
 
 
 def create_summarization_agent(

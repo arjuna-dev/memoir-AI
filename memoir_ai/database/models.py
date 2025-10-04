@@ -51,7 +51,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # Core fields
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
     level: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     parent_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("categories.id"), nullable=True
@@ -303,6 +303,33 @@ class ContextualHelper(Base):
             else self.helper_text
         )
         return f"<ContextualHelper(source_id='{self.source_id}', tokens={self.token_count}, text='{helper_preview}')>"
+
+
+class ProjectMetadata(Base):
+    """Key-value store for project-level metadata."""
+
+    __tablename__ = "project_metadata"
+
+    # Identifier
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+
+    # Metadata payload stored as JSON for flexibility
+    value_json: Mapped[Dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (Index("idx_project_metadata_key", "key", unique=True),)
+
+    def __repr__(self) -> str:
+        return f"<ProjectMetadata(key='{self.key}', value={self.value_json})>"
 
 
 class CategoryLimits(Base):

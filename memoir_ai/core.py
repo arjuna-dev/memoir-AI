@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from .classification.category_manager import CategoryManager
 from .database.engine import DatabaseManager
-from .database.models import Category, Chunk, ContextualHelper
+from .database.models import Category, Chunk, ProjectMetadata
 from .text_processing.chunker import TextChunk, TextChunker
 
 # Import the implemented iterative classification workflow.
@@ -96,6 +96,8 @@ class MemoirAI:
     - Transaction management for data consistency
     - Comprehensive error handling and validation
     """
+
+    _HIERARCHY_DEPTH_METADATA_KEY = "hierarchy_depth"
 
     def __init__(
         self,
@@ -183,6 +185,102 @@ class MemoirAI:
                 operation="initialize_schema",
             )
 
+    # ------------------------------------------------------------------
+    # Project metadata helpers
+    # ------------------------------------------------------------------
+
+    def _get_project_metadata_value(self, session: Session, key: str) -> Optional[Any]:
+        entry = (
+            session.query(ProjectMetadata).filter(ProjectMetadata.key == key).first()
+        )
+
+        if not entry or not entry.value_json:
+            return None
+
+        return entry.value_json.get("value")
+
+    def _set_project_metadata_value(
+        self, session: Session, key: str, value: Any
+    ) -> None:
+        payload = {"value": value}
+        entry = (
+            session.query(ProjectMetadata).filter(ProjectMetadata.key == key).first()
+        )
+
+        if entry:
+            entry.value_json = payload
+            entry.updated_at = datetime.utcnow()
+        else:
+            session.add(
+                ProjectMetadata(
+                    key=key,
+                    value_json=payload,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+            )
+
+    def _apply_hierarchy_depth(self, depth: int) -> None:
+        if not isinstance(depth, int) or depth <= 0:
+            return
+
+        self.hierarchy_depth = depth
+        self.category_manager.hierarchy_depth = depth
+
+        if hasattr(self, "iterative_classifier") and self.iterative_classifier:
+            self.iterative_classifier.category_manager.hierarchy_depth = depth
+            batch_classifier = getattr(
+                self.iterative_classifier, "batch_classifier", None
+            )
+            if batch_classifier is not None:
+                batch_classifier.hierarchy_depth = depth
+
+        if hasattr(self, "query_processor") and self.query_processor:
+            self.query_processor.category_manager.hierarchy_depth = depth
+            self.query_processor.strategy_engine.hierarchy_depth = depth
+
+    def _synchronize_hierarchy_depth(self, session: Session) -> None:
+        stored_value = self._get_project_metadata_value(
+            session, self._HIERARCHY_DEPTH_METADATA_KEY
+        )
+
+        if stored_value is not None:
+            try:
+                depth = int(stored_value)
+            except (TypeError, ValueError):
+                depth = self.category_manager.hierarchy_depth
+        else:
+            depth = self.category_manager.hierarchy_depth
+            self._set_project_metadata_value(
+                session, self._HIERARCHY_DEPTH_METADATA_KEY, depth
+            )
+
+        self._apply_hierarchy_depth(depth)
+
+    def _update_hierarchy_depth_if_needed(
+        self, session: Session, observed_depth: int
+    ) -> None:
+        if not isinstance(observed_depth, int) or observed_depth <= 0:
+            return
+
+        stored_value = self._get_project_metadata_value(
+            session, self._HIERARCHY_DEPTH_METADATA_KEY
+        )
+
+        stored_depth: Optional[int]
+        try:
+            stored_depth = int(stored_value) if stored_value is not None else None
+        except (TypeError, ValueError):
+            stored_depth = None
+
+        if stored_depth is None or observed_depth > stored_depth:
+            self._set_project_metadata_value(
+                session, self._HIERARCHY_DEPTH_METADATA_KEY, observed_depth
+            )
+            self._apply_hierarchy_depth(observed_depth)
+        else:
+            self._apply_hierarchy_depth(stored_depth)
+
     def _validate_configuration(self) -> None:
         """Validate configuration parameters."""
         errors = []
@@ -254,6 +352,9 @@ class MemoirAI:
                     category_limits=self.max_categories_per_level,
                 )
 
+                # Synchronize hierarchy depth from project metadata (or seed it)
+                self._synchronize_hierarchy_depth(session)
+
                 # Initialize iterative classification workflow (requirement 5.2)
                 self.iterative_classifier: Optional[IterativeClassificationWorkflow]
                 if IterativeClassificationWorkflow is not None:
@@ -271,6 +372,11 @@ class MemoirAI:
                     category_manager=self.category_manager,
                     session=session,
                     model_name=self.model_name,
+                )
+
+                # Ensure query processor strategy reflects current depth
+                self.query_processor.strategy_engine.hierarchy_depth = (
+                    self.category_manager.hierarchy_depth
                 )
 
                 # Initialize result aggregator
@@ -387,14 +493,45 @@ class MemoirAI:
                             retry_count=0,
                         )
 
-                    classification_results = (
-                        await self.iterative_classifier.classify_all_chunks(
-                            chunks=chunks,
-                            contextual_helper=contextual_helper
-                            or f"Content from source: {source_id}",
+                    helper_input = (
+                        contextual_helper.strip()
+                        if contextual_helper and contextual_helper.strip()
+                        else None
+                    )
+                    effective_helper = (
+                        helper_input
+                        if helper_input
+                        else f"Content from source: {source_id}"
+                    )
+                    helper_tokens = self.text_chunker.count_tokens(effective_helper)
+                    if helper_tokens <= 0:
+                        raise ValidationError(
+                            "Contextual helper must contain at least one token",
+                            field="contextual_helper",
+                            value=effective_helper,
+                        )
+
+                    root_category = (
+                        self.iterative_classifier.ensure_root_context_category(
+                            helper_text=effective_helper,
+                            token_count=helper_tokens,
+                            is_user_provided=bool(helper_input),
                             source_id=source_id,
                         )
                     )
+
+                    classification_results = (
+                        await self.iterative_classifier.classify_all_chunks(
+                            chunks=chunks,
+                            contextual_helper=effective_helper,
+                            source_id=source_id,
+                            root_category=root_category,
+                        )
+                    )
+
+                    # Attach root category to ingestion session so it persists with commit
+                    if root_category is not None:
+                        session.merge(root_category)
 
                     logger.info(f"Classified {len(classification_results)} chunks")
 
@@ -431,7 +568,9 @@ class MemoirAI:
                                     "token_count": chunk.token_count,
                                     "category_path": " > ".join(
                                         cat.name for cat in result.category_path
-                                    ),
+                                    )[
+                                        :50
+                                    ],  # Truncate for brevity
                                     "category_id": leaf_category.id,
                                     "classification_latency_ms": result.total_latency_ms,
                                 }
@@ -441,25 +580,16 @@ class MemoirAI:
                                 f"Failed to classify chunk {i}: {result.error}"
                             )
 
-                    # Store contextual helper if provided
-                    if contextual_helper:
-                        helper_tokens = self.text_chunker.count_tokens(
-                            contextual_helper
-                        )
-                        if helper_tokens <= 0:
-                            raise ValidationError(
-                                "Contextual helper must contain at least one token",
-                                field="contextual_helper",
-                                value=contextual_helper,
-                            )
+                    max_observed_depth = max(
+                        (
+                            len(result.category_path)
+                            for result in classification_results
+                            if result.category_path
+                        ),
+                        default=self.category_manager.hierarchy_depth,
+                    )
 
-                        helper_record = ContextualHelper(
-                            source_id=source_id,
-                            helper_text=contextual_helper.strip(),
-                            token_count=helper_tokens,
-                            is_user_provided=True,
-                        )
-                        session.add(helper_record)
+                    self._update_hierarchy_depth_if_needed(session, max_observed_depth)
 
                     # Commit transaction
                     session.commit()
@@ -759,25 +889,29 @@ class MemoirAI:
                 # This is a simplified implementation - in practice, you'd use a more sophisticated approach
                 contextual_helper = f"Content analysis for source {source_id}: Contains {len(chunks)} chunks covering various topics."
 
-                # Update or create contextual helper record
-                existing_helper = (
-                    session.query(ContextualHelper)
-                    .filter(ContextualHelper.source_id == source_id)
-                    .first()
+                helper_tokens = self.text_chunker.count_tokens(contextual_helper)
+                if helper_tokens <= 0:
+                    raise ValidationError(
+                        "Contextual helper must contain at least one token",
+                        field="contextual_helper",
+                        value=contextual_helper,
+                    )
+
+                if not self.iterative_classifier:
+                    raise ClassificationError(
+                        "Iterative classification workflow is not initialized",
+                        retry_count=0,
+                    )
+
+                root_category = self.iterative_classifier.ensure_root_context_category(
+                    helper_text=contextual_helper,
+                    token_count=helper_tokens,
+                    is_user_provided=False,
+                    source_id=source_id,
                 )
 
-                if existing_helper:
-                    existing_helper.helper_text = contextual_helper
-                    existing_helper.created_at = datetime.now()
-                else:
-                    helper_record = ContextualHelper(
-                        source_id=source_id,
-                        helper_text=contextual_helper,
-                        created_at=datetime.now(),
-                    )
-                    session.add(helper_record)
-
-                session.commit()
+                if root_category is not None:
+                    session.merge(root_category)
 
                 logger.info(f"Regenerated contextual helper for source '{source_id}'")
                 return contextual_helper

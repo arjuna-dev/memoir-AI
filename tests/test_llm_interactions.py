@@ -10,10 +10,17 @@ from memoir_ai.exceptions import LLMError
 from memoir_ai.llm.interactions import (
     build_chunk_classification_prompt,
     build_query_category_prompt,
+    build_query_contextual_helper_prompt,
     classify_chunk_with_llm,
+    select_categories_for_query,
     select_category_for_query,
+    select_contextual_helper_for_query,
 )
-from memoir_ai.llm.schemas import CategorySelection, QueryCategorySelection
+from memoir_ai.llm.schemas import (
+    CategorySelection,
+    QueryCategorySelection,
+    QueryCategorySelectionList,
+)
 
 
 class DummyCategory:
@@ -65,7 +72,7 @@ def test_build_query_category_prompt() -> None:
 
     prompt = build_query_category_prompt(
         query_text="Explain the latest in quantum computing",
-        level=1,
+        level=2,
         available_categories=["Technology", "Science"],
         contextual_helper="Looking for research topics",
     )
@@ -73,6 +80,28 @@ def test_build_query_category_prompt() -> None:
     assert "Available Categories: Technology, Science" in prompt
     assert "User Query: Explain the latest in quantum computing" in prompt
     assert "ranked relevance score" in prompt
+
+
+def test_build_query_contextual_helper_prompt() -> None:
+    """Contextual helper prompt should list all helper options."""
+
+    helpers = [
+        DummyCategory("Tech Insights"),
+        DummyCategory("Policy Overview"),
+    ]
+    # Attach metadata for first helper
+    helpers[0].metadata_json = {"helper_text": "Technical deep dive"}
+
+    prompt = build_query_contextual_helper_prompt(
+        query_text="Explain the policy response to AI advancements",
+        contextual_helpers=helpers,
+    )
+
+    assert "Option 1" in prompt
+    assert "Tech Insights" in prompt
+    assert "Technical deep dive" in prompt
+    assert "Option 2" in prompt
+    assert "User Query: Explain the policy response to AI advancements" in prompt
 
 
 @pytest.mark.asyncio
@@ -146,6 +175,7 @@ async def test_select_category_for_query_success() -> None:
     assert selection.category == "AI"
     assert metadata["available_category_names"] == ["AI", "ML"]
     assert metadata["level"] == 2
+    assert metadata["selection_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -161,5 +191,101 @@ async def test_select_category_for_query_invalid_response() -> None:
             level=2,
             available_categories=["AI"],
             contextual_helper=None,
+            agent=agent,
+        )
+
+
+@pytest.mark.asyncio
+async def test_select_categories_for_query_multi_success() -> None:
+    """Multi-selection should return ordered results and metadata."""
+
+    agent = Mock()
+    agent.run_async = AsyncMock(
+        return_value=SimpleNamespace(
+            data=QueryCategorySelectionList(
+                selections=[
+                    QueryCategorySelection(category="AI", ranked_relevance=9),
+                    QueryCategorySelection(category="ML", ranked_relevance=8),
+                    QueryCategorySelection(category="AI", ranked_relevance=7),
+                ]
+            )
+        )
+    )
+
+    selections, metadata = await select_categories_for_query(
+        query_text="deep learning",
+        level=2,
+        available_categories=[
+            DummyCategory("AI"),
+            DummyCategory("ML"),
+            DummyCategory("Web"),
+        ],
+        contextual_helper="Research",
+        selection_count=2,
+        agent=agent,
+    )
+
+    agent.run_async.assert_awaited()
+    assert [selection.category for selection in selections] == ["AI", "ML"]
+    assert metadata["selection_count"] == 2
+    assert metadata["available_category_names"] == ["AI", "ML", "Web"]
+
+
+@pytest.mark.asyncio
+async def test_select_categories_for_query_invalid_response() -> None:
+    """Invalid multi-selection responses should raise errors."""
+
+    agent = Mock()
+    agent.run_async = AsyncMock(return_value=SimpleNamespace(data=None))
+
+    with pytest.raises(LLMError):
+        await select_categories_for_query(
+            query_text="deep learning",
+            level=2,
+            available_categories=[DummyCategory("AI")],
+            contextual_helper="Research",
+            selection_count=2,
+            agent=agent,
+        )
+
+
+@pytest.mark.asyncio
+async def test_select_contextual_helper_for_query_success() -> None:
+    """Contextual helper selection should return chosen helper and metadata."""
+
+    helpers = [DummyCategory("Tech"), DummyCategory("Policy")]
+    helpers[0].metadata_json = {"helper_text": "Technical details"}
+    helpers[1].metadata_json = {"helper_text": "Policy analysis"}
+
+    agent = Mock()
+    agent.run_async = AsyncMock(
+        return_value=SimpleNamespace(
+            data=QueryCategorySelection(category="Policy", ranked_relevance=8)
+        )
+    )
+
+    selection, metadata = await select_contextual_helper_for_query(
+        query_text="How are governments regulating AI?",
+        contextual_helpers=helpers,
+        agent=agent,
+    )
+
+    agent.run_async.assert_awaited()
+    assert selection.category == "Policy"
+    assert metadata["available_contextual_helpers"] == ["Tech", "Policy"]
+
+
+@pytest.mark.asyncio
+async def test_select_contextual_helper_for_query_invalid_response() -> None:
+    """Invalid contextual helper responses should raise an error."""
+
+    helpers = [DummyCategory("Tech")]
+    agent = Mock()
+    agent.run_async = AsyncMock(return_value=SimpleNamespace(data=None))
+
+    with pytest.raises(LLMError):
+        await select_contextual_helper_for_query(
+            query_text="Explain AI infrastructure",
+            contextual_helpers=helpers,
             agent=agent,
         )
