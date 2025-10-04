@@ -562,15 +562,21 @@ class MemoirAI:
                             chunks_stored += 1
                             total_tokens += chunk.token_count
 
+                            # Exclude level-1 contextual helper from the displayed path
+                            displayed_path_names = [
+                                cat.name for cat in result.category_path[1:]
+                            ]
+                            displayed_path = (
+                                " > ".join(displayed_path_names)
+                                if displayed_path_names
+                                else ""
+                            )
+
                             chunk_details.append(
                                 {
                                     "chunk_index": i,
                                     "token_count": chunk.token_count,
-                                    "category_path": " > ".join(
-                                        cat.name for cat in result.category_path
-                                    )[
-                                        :50
-                                    ],  # Truncate for brevity
+                                    "category_path": displayed_path,
                                     "category_id": leaf_category.id,
                                     "classification_latency_ms": result.total_latency_ms,
                                 }

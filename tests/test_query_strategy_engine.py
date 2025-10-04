@@ -180,9 +180,12 @@ class TestQueryStrategyEngine:
                 ),
             ]
 
-            # Mock category manager responses (current implementation starts at level 2)
+            # Mock category manager responses
+            # New behavior: one-shot checks level 1 to anchor on contextual helper (if any),
+            # then proceeds with level 2 and beyond.
             self.mock_category_manager.get_existing_categories.side_effect = [
-                self.level2_tech_categories,  # Level 2 (no parent, so all level 2 categories)
+                self.level1_categories,  # Level 1 contextual helpers
+                self.level2_tech_categories,  # Level 2 (no parent match in this test)
                 self.level3_ai_categories,  # Level 3 under AI
                 [],  # Level 4 (no more categories)
             ]
@@ -207,8 +210,12 @@ class TestQueryStrategyEngine:
             assert path.path[1].name == "ML"
 
             calls = self.mock_category_manager.get_existing_categories.call_args_list
-            assert calls[0].args == (2, None)  # Level 2 with no parent
-            assert calls[1].args == (3, 3)  # Level 3 under AI
+            # First call: level 1 to attempt anchoring on contextual helper
+            assert calls[0].args == (1,)
+            # Second call: level 2 with no parent (no helper match in this test)
+            assert calls[1].args == (2, None)
+            # Third call: level 3 under AI
+            assert calls[2].args == (3, 3)
 
     def test_deduplicate_paths(self) -> None:
         """Test path deduplication."""

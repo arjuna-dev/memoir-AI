@@ -165,6 +165,24 @@ class QueryStrategyEngine:
         selected_categories: List[Category] = []
         parent: Optional[Category] = None
 
+        # Anchor traversal at the contextual helper (level 1) when available
+        if contextual_helper:
+            try:
+                level_one_categories = self.category_manager.get_existing_categories(1)
+                ctx_norm = contextual_helper.strip().lower()
+                for category in level_one_categories:
+                    meta = getattr(category, "metadata_json", {}) or {}
+                    helper_text = str(meta.get("helper_text", "")).strip().lower()
+                    if category.name.strip().lower() == ctx_norm or (
+                        helper_text and helper_text == ctx_norm
+                    ):
+                        parent = category
+                        break
+            except Exception:
+                parent = None
+
+        # Parent remains None for one-shot; level-2 retrieval will provide candidates
+
         # We start at level 2 since level 1 is handled separately and reserved for contextual helpers
         start_level = 2
 
@@ -241,6 +259,17 @@ class QueryStrategyEngine:
             Tuple[List[Category], Optional[QueryClassificationResult]]
         ] = [([], None)]
 
+        # Find the contextual helper (level 1) to use as parent for level 2
+        contextual_helper_category: Optional[Category] = None
+        if contextual_helper:
+            level_one_categories = self.category_manager.get_existing_categories(
+                level=1
+            )
+            for category in level_one_categories:
+                if category.name.strip().lower() == contextual_helper.strip().lower():
+                    contextual_helper_category = category
+                    break
+
         # We start at level 2 since level 1 is handled separately and reserved for contextual helpers
         start_level = 2
 
@@ -250,8 +279,15 @@ class QueryStrategyEngine:
             ] = []
 
             for path, _ in path_records:
-                # Get last category in the current path to use as parent (if available, else root)
-                parent_category = path[-1] if path else None
+                # Get last category in the current path to use as parent
+                if path:
+                    parent_category = path[-1]
+                elif level == 2 and contextual_helper_category:
+                    # For level 2, use the contextual helper as parent
+                    parent_category = contextual_helper_category
+                else:
+                    parent_category = None
+
                 categories = self.category_manager.get_existing_categories(
                     level, parent_category.id if parent_category else None
                 )

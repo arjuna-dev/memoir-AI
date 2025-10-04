@@ -79,8 +79,8 @@ async def run_demo() -> None:
     print("\nRunning a query that triggers LLM category selection...\n")
     query_result = await memoir.query_processor.process_query(
         query_text="What happened with Netanyahu?",
-        strategy=QueryStrategy.ZOOM_IN,
-        # strategy=QueryStrategy.ONE_SHOT,
+        # strategy=QueryStrategy.ZOOM_IN,
+        strategy=QueryStrategy.ONE_SHOT,
         chunk_limit_per_path=5,
     )
 
