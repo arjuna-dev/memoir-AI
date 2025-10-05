@@ -94,8 +94,8 @@ async def run_demo() -> None:
 
     print(f"\nRetrieved {query_result.total_chunks} chunk(s) for inspection.\n")
     for chunk in query_result.chunks:
-        preview = chunk.text_content[:120].replace("\n", " ")
-        print(f"Category Path: {chunk.category_path}")
+        preview = chunk.text_content[:200].replace("\n", " ")
+        print(f"Category Path: {chunk.category_path[1:]}")
         print(f"Preview: {preview}...")
         print("-")
 
