@@ -619,10 +619,7 @@ class ContextualHelperGenerator:
 
         # Create helper data
         helper_data = ContextualHelperData(
-            author=author if author.lower() != "unknown" else None,
-            date=date if date.lower() != "unknown" else None,
-            topic=topic if topic.lower() != "unknown" else None,
-            description=description if description.lower() != "unknown" else None,
+            title=title, author=author, date=date, topic=topic, description=description
         )
 
         # Compose and validate helper text
