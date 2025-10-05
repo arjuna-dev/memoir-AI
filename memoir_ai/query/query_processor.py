@@ -75,7 +75,6 @@ class QueryProcessor:
         strategy_params: Optional[Dict[str, Any]] = None,
         chunk_limit_per_path: Optional[int] = None,
         offset: int = 0,
-        contextual_helper: Optional[str] = None,
     ) -> QueryResult:
         """
         Process a complete natural language query.

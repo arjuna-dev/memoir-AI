@@ -166,20 +166,19 @@ class QueryStrategyEngine:
         parent: Optional[Category] = None
 
         # Anchor traversal at the contextual helper (level 1) when available
-        if contextual_helper:
-            try:
-                level_one_categories = self.category_manager.get_existing_categories(1)
-                ctx_norm = contextual_helper.strip().lower()
-                for category in level_one_categories:
-                    meta = getattr(category, "metadata_json", {}) or {}
-                    helper_text = str(meta.get("helper_text", "")).strip().lower()
-                    if category.name.strip().lower() == ctx_norm or (
-                        helper_text and helper_text == ctx_norm
-                    ):
-                        parent = category
-                        break
-            except Exception:
-                parent = None
+        try:
+            level_one_categories = self.category_manager.get_existing_categories(1)
+            ctx_norm = contextual_helper.strip().lower()
+            for category in level_one_categories:
+                meta = getattr(category, "metadata_json", {}) or {}
+                helper_text = str(meta.get("helper_text", "")).strip().lower()
+                if category.name.strip().lower() == ctx_norm or (
+                    helper_text and helper_text == ctx_norm
+                ):
+                    parent = category
+                    break
+        except Exception:
+            parent = None
 
         # Parent remains None for one-shot; level-2 retrieval will provide candidates
 

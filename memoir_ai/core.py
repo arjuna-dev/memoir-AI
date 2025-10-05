@@ -703,7 +703,6 @@ class MemoirAI:
                     query_text=query_text,
                     strategy=strategy,
                     strategy_params=strategy_params or {},
-                    contextual_helper=contextual_helper,
                     chunk_limit_per_path=limit,
                 )
 
