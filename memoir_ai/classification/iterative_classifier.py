@@ -43,6 +43,7 @@ class IterativeClassificationResult:
     total_latency_ms: int
     llm_calls: int
     levels_processed: int
+    chunk_record_id: Optional[int] = None
     error: Optional[str] = None
     level_results: Optional[List[Dict[str, Any]]] = None
 
@@ -142,7 +143,7 @@ class IterativeClassificationWorkflow:
             List of classification results for all chunks
         """
         if not chunks:
-            return []
+            raise Exception("No chunks provided for classification")
 
         workflow_id = f"workflow_{int(time.time())}_{len(chunks)}"
         start_time = time.time()
@@ -165,14 +166,16 @@ class IterativeClassificationWorkflow:
                         workflow_id,
                         root_category=root_category,
                     )
-                    results.append(result)
                     total_llm_calls += result.llm_calls
 
                     # Store successful classification
                     if result.success and result.final_category:
-                        await self._store_chunk_classification(
+                        chunk_record = await self._store_chunk_classification(
                             chunk, result.final_category, source_id
                         )
+                        result.chunk_record_id = chunk_record.id
+
+                    results.append(result)
 
                 except Exception as e:
                     logger.error(f"Failed to classify chunk in {workflow_id}: {e}")
@@ -252,6 +255,7 @@ class IterativeClassificationWorkflow:
             for classification in response.classifications:
                 chunk_idx = classification.chunk_id - 1  # Convert to 0-based index
 
+                # Validate chunk index
                 if chunk_idx < 0 or chunk_idx >= len(chunks):
                     logger.warning(
                         f"Invalid chunk_id {classification.chunk_id}, skipping"
@@ -270,7 +274,7 @@ class IterativeClassificationWorkflow:
                         final_category = category_path[-1]
 
                         # Store chunk classification
-                        await self._store_chunk_classification(
+                        chunk_record = await self._store_chunk_classification(
                             chunk=chunk,
                             final_category=final_category,
                             source_id=source_id,
@@ -285,6 +289,7 @@ class IterativeClassificationWorkflow:
                                 total_latency_ms=metadata.get("latency_ms", 0),
                                 llm_calls=1,
                                 levels_processed=len(category_path),
+                                chunk_record_id=chunk_record.id,
                             )
                         )
                     else:
@@ -366,6 +371,7 @@ class IterativeClassificationWorkflow:
         *,
         is_user_provided: bool,
         source_id: Optional[str] = None,
+        override_source_id: Optional[str] = None,
     ) -> Category:
         """Ensure a Level 1 category exists for the provided contextual helper."""
 
@@ -381,8 +387,8 @@ class IterativeClassificationWorkflow:
 
         existing_category: Optional[Category] = None
 
-        if source_id:
-            existing_category = self._find_root_category_for_source(source_id)
+        if override_source_id:
+            existing_category = self._find_root_category_for_source(override_source_id)
 
         if not existing_category:
             existing_category = (
@@ -395,14 +401,16 @@ class IterativeClassificationWorkflow:
             "is_user_provided": is_user_provided,
         }
 
-        if source_id:
+        # Always track source_id if provided, or override_source_id as fallback
+        tracking_source_id = source_id or override_source_id
+        if tracking_source_id:
             sources: set[str] = set()
             if existing_category and existing_category.metadata_json:
                 existing_sources = (
                     existing_category.metadata_json.get("source_ids") or []
                 )
                 sources.update(existing_sources)
-            sources.add(source_id)
+            sources.add(tracking_source_id)
             metadata["source_ids"] = sorted(sources)
 
         metadata["updated_at"] = datetime.utcnow().isoformat()
@@ -866,7 +874,7 @@ class IterativeClassificationWorkflow:
         chunk: TextChunk,
         final_category: Category,
         source_id: Optional[str] = None,
-    ) -> None:
+    ) -> Chunk:
         """
         Store chunk classification result in database.
 
@@ -904,6 +912,8 @@ class IterativeClassificationWorkflow:
             logger.debug(
                 f"Stored chunk {chunk_record.id} in category {final_category.id}"
             )
+
+            return chunk_record
 
         except ValidationError:
             # Propagate validation errors unchanged
