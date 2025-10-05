@@ -100,18 +100,15 @@ class QueryProcessor:
                 level=1
             )
         except Exception:
-            level_one_categories = []
+            raise ClassificationError(
+                "Error retrieving level one categories for contextual helper"
+            )
 
-        if not isinstance(level_one_categories, (list, tuple)):
-            level_one_categories = []
-
-        if not level_one_categories:
-            contextual_helper_value = contextual_helper_value or ""
-        elif len(level_one_categories) == 1 and not contextual_helper_value:
+        if len(level_one_categories) == 1:
             root_category = level_one_categories[0]
             metadata = getattr(root_category, "metadata_json", {}) or {}
             contextual_helper_value = metadata.get("helper_text", root_category.name)
-        elif not contextual_helper_value:
+        else:
             try:
                 selection, _helper_metadata = await select_contextual_helper_for_query(
                     query_text=query_text,
