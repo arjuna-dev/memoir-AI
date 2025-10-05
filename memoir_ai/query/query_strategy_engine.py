@@ -180,8 +180,6 @@ class QueryStrategyEngine:
         except Exception:
             parent = None
 
-        # Parent remains None for one-shot; level-2 retrieval will provide candidates
-
         # We start at level 2 since level 1 is handled separately and reserved for contextual helpers
         start_level = 2
 
