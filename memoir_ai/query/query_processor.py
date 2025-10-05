@@ -94,15 +94,8 @@ class QueryProcessor:
 
         logger.info(f"Processing query: '{query_text[:50]}...' using {strategy.value}")
 
-        # Determine contextual helper (can be provided explicitly)
-        contextual_helper_value: str = ""
-
-        if contextual_helper and contextual_helper.strip():
-            contextual_helper_value = contextual_helper.strip()
-        else:
-            contextual_helper_value = ""
-
         # Determine contextual helper based on level one categories (best-effort)
+        contextual_helper_value: str
         try:
             level_one_categories = self.category_manager.get_existing_categories(
                 level=1
@@ -148,8 +141,9 @@ class QueryProcessor:
                     selection.ranked_relevance,
                 )
             except Exception as error:  # pragma: no cover - defensive logging
-                logger.warning("Failed to select contextual helper via LLM: %s", error)
-                contextual_helper_value = contextual_helper_value or ""
+                raise ClassificationError(
+                    f"Error selecting contextual helper: {error}"
+                ) from error
 
         try:
             # Step 1: Execute query strategy to get category paths
