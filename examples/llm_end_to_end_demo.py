@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 
 from memoir_ai.core import MemoirAI
@@ -78,7 +79,7 @@ async def run_demo() -> None:
 
     print("\nRunning a query that triggers LLM category selection...\n")
     query_result = await memoir.query_processor.process_query(
-        query_text="What happened with Netanyahu?",
+        query_text="What has been said about the 'Seven-Front War'?",
         # strategy=QueryStrategy.ZOOM_IN,
         strategy=QueryStrategy.ONE_SHOT,
         chunk_limit_per_path=5,
@@ -93,9 +94,74 @@ async def run_demo() -> None:
             )
 
     print(f"\nRetrieved {query_result.total_chunks} chunk(s) for inspection.\n")
+
+    # Check if there's only one level 1 category in the database to determine if we should skip it
+    level_one_categories = memoir.category_manager.get_existing_categories(level=1)
+    skip_level_1 = len(level_one_categories) == 1
+
+    # Write chunks to file
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"chunk_results/chunk_results_{timestamp}.txt"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"Chunk Results - Generated at {datetime.now().isoformat()}\n")
+        f.write(f"Query: What has been said about the 'Seven-Front War'?\n")
+        f.write(f"Total chunks: {query_result.total_chunks}\n")
+        f.write("=" * 80 + "\n\n")
+
+        for i, chunk in enumerate(query_result.chunks, 1):
+            # Format category path (skip level 1 if there's only one)
+            if chunk.category_path:
+                # Try different separators that might be used
+                if " → " in chunk.category_path:
+                    path_parts = chunk.category_path.split(" → ")
+                    separator = " → "
+                elif " > " in chunk.category_path:
+                    path_parts = chunk.category_path.split(" > ")
+                    separator = " > "
+                else:
+                    path_parts = [chunk.category_path]
+                    separator = " → "
+
+                if skip_level_1 and len(path_parts) > 1:
+                    display_path = separator.join(path_parts[1:])
+                else:
+                    display_path = chunk.category_path
+            else:
+                display_path = "No category path"
+
+            f.write(f"CHUNK {i}\n")
+            f.write(f"Category Path: {display_path}\n")
+            f.write("-" * 40 + "\n")
+            f.write(chunk.text_content)
+            f.write("\n\n" + "=" * 80 + "\n\n")
+
+    print(f"Chunk results written to: {filename}")
+
+    # Also display preview in console (with same path formatting as file)
     for chunk in query_result.chunks:
+        # Format category path (skip level 1 if there's only one)
+        if chunk.category_path:
+            # Try different separators that might be used
+            if " → " in chunk.category_path:
+                path_parts = chunk.category_path.split(" → ")
+                separator = " → "
+            elif " > " in chunk.category_path:
+                path_parts = chunk.category_path.split(" > ")
+                separator = " > "
+            else:
+                path_parts = [chunk.category_path]
+                separator = " → "
+
+            if skip_level_1 and len(path_parts) > 1:
+                display_path = separator.join(path_parts[1:])
+            else:
+                display_path = chunk.category_path
+        else:
+            display_path = "No category path"
+
         preview = chunk.text_content[:200].replace("\n", " ")
-        print(f"Category Path: {chunk.category_path[1:]}")
+        print(f"Category Path: {display_path}")
         print(f"Preview: {preview}...")
         print("-")
 

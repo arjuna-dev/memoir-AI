@@ -1,3 +1,4 @@
+chunk_results_*.txt
 # Python
 __pycache__/
 *.py[cod]
