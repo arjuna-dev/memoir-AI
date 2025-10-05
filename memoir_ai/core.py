@@ -470,16 +470,10 @@ class MemoirAI:
                     chunks = self.text_chunker.chunk_text(content, source_id=source_id)
 
                     if not chunks:
-                        logger.warning(f"No chunks generated for source '{source_id}'")
-                        return IngestionResult(
-                            success=True,
-                            chunks_processed=0,
-                            chunks_stored=0,
-                            categories_created=0,
-                            source_id=source_id,
-                            processing_time_ms=0,
-                            total_tokens=0,
-                            warnings=["No chunks generated from content"],
+                        raise ValidationError(
+                            "No chunks were generated from the provided content",
+                            field="content",
+                            value=content,
                         )
 
                     logger.info(
@@ -493,16 +487,14 @@ class MemoirAI:
                             retry_count=0,
                         )
 
-                    helper_input = (
-                        contextual_helper.strip()
-                        if contextual_helper and contextual_helper.strip()
-                        else None
-                    )
-                    effective_helper = (
-                        helper_input
-                        if helper_input
-                        else f"Content from source: {source_id}"
-                    )
+                    effective_helper: str
+                    if contextual_helper and contextual_helper.strip():
+                        effective_helper = contextual_helper.strip()
+                    else:
+                        raise Exception(
+                            "Contextual helper must be provided for ingestion"
+                        )
+
                     helper_tokens = self.text_chunker.count_tokens(effective_helper)
                     if helper_tokens <= 0:
                         raise ValidationError(
@@ -511,11 +503,15 @@ class MemoirAI:
                             value=effective_helper,
                         )
 
+                    # Ensure root category for contextual helper
+                    # If override_source_id is provided, the system will try to find an existing matching root category and update it.
                     root_category = (
                         self.iterative_classifier.ensure_root_context_category(
                             helper_text=effective_helper,
                             token_count=helper_tokens,
-                            is_user_provided=bool(helper_input),
+                            is_user_provided=bool(
+                                contextual_helper and contextual_helper.strip()
+                            ),
                             source_id=source_id,
                         )
                     )
@@ -535,7 +531,7 @@ class MemoirAI:
 
                     logger.info(f"Classified {len(classification_results)} chunks")
 
-                    # Step 3: Store chunks and classifications
+                    # Step 3: Summarize stored chunks and classifications
                     chunks_stored = 0
                     categories_created = 0
                     chunk_details = []
@@ -550,18 +546,6 @@ class MemoirAI:
                         ):
                             leaf_category = result.final_category
 
-                            # Create chunk record mirroring storage in workflow (idempotent within txn)
-                            chunk_record = Chunk(
-                                content=chunk.content,
-                                token_count=chunk.token_count,
-                                source_id=source_id,
-                                category_id=leaf_category.id,
-                                created_at=datetime.now(),
-                            )
-                            session.add(chunk_record)
-                            chunks_stored += 1
-                            total_tokens += chunk.token_count
-
                             # Exclude level-1 contextual helper from the displayed path
                             displayed_path_names = [
                                 cat.name for cat in result.category_path[1:]
@@ -572,9 +556,19 @@ class MemoirAI:
                                 else ""
                             )
 
+                            if result.chunk_record_id is None:
+                                logger.warning(
+                                    "Chunk %s classified but no database ID was recorded",
+                                    i,
+                                )
+                            else:
+                                chunks_stored += 1
+                                total_tokens += chunk.token_count
+
                             chunk_details.append(
                                 {
                                     "chunk_index": i,
+                                    "chunk_id": result.chunk_record_id,
                                     "token_count": chunk.token_count,
                                     "category_path": displayed_path,
                                     "category_id": leaf_category.id,
