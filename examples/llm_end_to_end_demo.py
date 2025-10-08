@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from memoir_ai.core import MemoirAI
+from memoir_ai.llm.llm_models import Model, Models
 from memoir_ai.query.query_strategy_engine import QueryStrategy
 from memoir_ai.text_processing.contextual_helper import ContextualHelperGenerator
 
@@ -34,7 +35,7 @@ async def run_demo() -> None:
 
     memoir = MemoirAI(
         database_url=f"sqlite:///{database_path}",
-        model_name="openai:gpt-4o-mini",
+        model_name=Models.openai_gpt_5_nano.name,
         hierarchy_depth=4,
         chunk_min_tokens=80,
         chunk_max_tokens=220,
