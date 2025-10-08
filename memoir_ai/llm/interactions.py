@@ -482,15 +482,13 @@ async def classify_all_chunks_with_llm(
 
     # Create a temporary batch classifier to use its prompt generation method
     temp_classifier = BatchCategoryClassifier(
-        model=Models.openai_gpt_4o_mini, hierarchy_depth=hierarchy_depth
+        model=Models.test, hierarchy_depth=hierarchy_depth
     )
 
     # Generate the prompt using the existing method
     prompt = temp_classifier._create_batch_prompt_all_levels(
         chunks=chunks, contextual_helper=contextual_helper
     )
-
-    logger.info(f"LLM Hierarchical Batch Classification Prompt: {prompt}")
 
     classification_agent = agent or create_hierarchical_batch_classification_agent(
         model_name
