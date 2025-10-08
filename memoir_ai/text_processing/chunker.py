@@ -190,11 +190,7 @@ class TextChunker:
         if self.merge_small_chunks:
             initial_chunks = self._merge_small_chunks(initial_chunks)
 
-        # Step 5: Split large chunks if enabled
-        if self.split_large_chunks:
-            initial_chunks = self._split_large_chunks(initial_chunks)
-
-        # Step 6: Final validation and cleanup
+        # Step 5: Final validation and cleanup
         final_chunks = self._validate_and_cleanup_chunks(initial_chunks)
 
         return final_chunks
@@ -229,7 +225,7 @@ class TextChunker:
 
         # Handle case where no delimiters found
         if not segments and content.strip():
-            segments.append(content.strip())
+            raise ValueError("No valid segments found according to the set delimiters")
 
         return segments
 
@@ -258,7 +254,7 @@ class TextChunker:
         source_id: Optional[str],
         metadata: Optional[Dict[str, Any]],
     ) -> List[TextChunk]:
-        """Create initial chunks from segments."""
+        """Create initial chunks from segments, ensuring no chunk exceeds max_tokens."""
         chunks = []
         current_pos = 0
 
@@ -271,26 +267,69 @@ class TextChunker:
 
             segment_end = segment_start + len(segment)
 
-            # Count tokens
+            # Count tokens in the segment
             token_count = self.count_tokens(segment)
 
-            # Create chunk
-            chunk = TextChunk(
-                content=segment,
-                token_count=token_count,
-                start_position=segment_start,
-                end_position=segment_end,
-                source_id=source_id,
-                metadata=metadata.copy() if metadata else None,
-            )
+            # If the segment exceeds max_tokens, split it
+            if token_count > self.max_tokens:
+                print(
+                    f"Warning: Segment exceeds max_tokens ({token_count} > {self.max_tokens}). Splitting segment."
+                )
+                sub_chunks = self._split_single_chunk(
+                    TextChunk(
+                        content=segment,
+                        token_count=token_count,
+                        start_position=segment_start,
+                        end_position=segment_end,
+                        source_id=source_id,
+                        metadata=metadata.copy() if metadata else None,
+                    )
+                )
 
-            chunks.append(chunk)
+                # Adjust the last sub_chunk to include remaining words even if it exceeds max_tokens
+                if len(sub_chunks) > 1:
+                    last_chunk = sub_chunks.pop()
+                    second_last_chunk = sub_chunks.pop()
+
+                    merged_content = (
+                        second_last_chunk.content + " " + last_chunk.content
+                    )
+                    merged_token_count = self.count_tokens(merged_content)
+
+                    print(
+                        f"Warning: Merging remaining words into the previous chunk, exceeding max_tokens ({merged_token_count} > {self.max_tokens})."
+                    )
+
+                    adjusted_chunk = TextChunk(
+                        content=merged_content,
+                        token_count=merged_token_count,
+                        start_position=second_last_chunk.start_position,
+                        end_position=last_chunk.end_position,
+                        source_id=second_last_chunk.source_id,
+                        metadata=second_last_chunk.metadata,
+                    )
+
+                    sub_chunks.append(adjusted_chunk)
+
+                chunks.extend(sub_chunks)
+            else:
+                # Create a chunk for the segment
+                chunk = TextChunk(
+                    content=segment,
+                    token_count=token_count,
+                    start_position=segment_start,
+                    end_position=segment_end,
+                    source_id=source_id,
+                    metadata=metadata.copy() if metadata else None,
+                )
+                chunks.append(chunk)
+
             current_pos = segment_end
 
         return chunks
 
     def _merge_small_chunks(self, chunks: List[TextChunk]) -> List[TextChunk]:
-        """Merge chunks that are below minimum token threshold."""
+        """Merge chunks to maximize token usage without exceeding max_tokens."""
         if not chunks:
             return chunks
 
@@ -298,32 +337,12 @@ class TextChunker:
         current_chunk = chunks[0]
 
         for next_chunk in chunks[1:]:
-            # Check if current chunk is too small and can be merged
-            if (
-                current_chunk.token_count < self.min_tokens
-                and current_chunk.token_count + next_chunk.token_count
-                <= self.max_tokens
-            ):
-                # Merge chunks
-                merged_content = current_chunk.content + " " + next_chunk.content
-                merged_token_count = self.count_tokens(merged_content)
+            # Attempt to merge chunks while staying within max_tokens
+            merged_content = current_chunk.content + " " + next_chunk.content
+            merged_token_count = self.count_tokens(merged_content)
 
-                current_chunk = TextChunk(
-                    content=merged_content,
-                    token_count=merged_token_count,
-                    start_position=current_chunk.start_position,
-                    end_position=next_chunk.end_position,
-                    source_id=current_chunk.source_id,
-                    metadata=current_chunk.metadata,
-                )
-            elif (
-                next_chunk.token_count < self.min_tokens
-                and current_chunk.token_count + next_chunk.token_count
-                <= self.max_tokens
-            ):
-                merged_content = current_chunk.content + " " + next_chunk.content
-                merged_token_count = self.count_tokens(merged_content)
-
+            if merged_token_count <= self.max_tokens:
+                # Merge is valid, update the current chunk
                 current_chunk = TextChunk(
                     content=merged_content,
                     token_count=merged_token_count,
@@ -333,7 +352,7 @@ class TextChunker:
                     metadata=current_chunk.metadata,
                 )
             else:
-                # Can't merge, add current chunk and move to next
+                # Cannot merge further, finalize the current chunk
                 merged_chunks.append(current_chunk)
                 current_chunk = next_chunk
 
@@ -341,20 +360,6 @@ class TextChunker:
         merged_chunks.append(current_chunk)
 
         return merged_chunks
-
-    def _split_large_chunks(self, chunks: List[TextChunk]) -> List[TextChunk]:
-        """Split chunks that exceed maximum token threshold."""
-        split_chunks = []
-
-        for chunk in chunks:
-            if chunk.token_count <= self.max_tokens:
-                split_chunks.append(chunk)
-            else:
-                # Split the chunk
-                sub_chunks = self._split_single_chunk(chunk)
-                split_chunks.extend(sub_chunks)
-
-        return split_chunks
 
     def _split_single_chunk(self, chunk: TextChunk) -> List[TextChunk]:
         """Split a single large chunk into smaller chunks."""
