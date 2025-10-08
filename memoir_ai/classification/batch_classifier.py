@@ -324,16 +324,6 @@ class BatchCategoryClassifier:
     ) -> str:
         """
         Create structured batch prompt according to requirements.
-
-        Format per Requirement 2A.2:
-        Chunk 1:
-        \"\"\"
-        <text content>
-        \"\"\"
-        Chunk 2:
-        \"\"\"
-        <text content>
-        \"\"\"
         """
         # Build contextual information
         context_parts = []
@@ -401,13 +391,7 @@ Respond with JSON containing the category for each chunk. Do not echo the chunk 
         # Validate chunk token count
         self._validate_chunk_token_count(chunks)
 
-        # Build contextual information
-        context_parts = []
-
-        if contextual_helper:
-            context_parts.append(f"Document Context: {contextual_helper}")
-
-        context_section = "\n".join(context_parts)
+        context_section = f"Document Context: {contextual_helper}"
 
         # Build chunks section per requirements
         chunks_section = []
@@ -441,7 +425,7 @@ description= "UN delegates lead a mass walkout as Netanyahu insists Israel must 
 \"\"\"
 
 Example input text chunks:
-
+---
 Chunk 1:
 \"\"\"
 
@@ -476,9 +460,10 @@ Benjamin Netanyahu told UN General Assembly delegates they 'appease evil' (Reute
 
 “I say to the representatives of those nations, this is not an indictment of Israel; it's an indictment of you. It's an indictment of weak leaders who appease evil rather than support a nation whose brave soldiers guard you from the barbarians at the gate.”
 \"\"\"
+---
 
-Example response format (for real use cases expect larger chunks):
-
+Example response format for 3 nested categories (for real use cases expect larger chunks):
+---
 "classifications": [
     {{
       "chunk_id": 1,
@@ -516,7 +501,10 @@ Example response format (for real use cases expect larger chunks):
         }}
       }}
     }}
-  ],
+  ]
+---
+
+Text Chunks to Classify:
 
 {chunks_text}
 
