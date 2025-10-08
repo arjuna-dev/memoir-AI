@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Union
 from litellm import token_counter
 
 from ..exceptions import ValidationError
+from ..llm.llm_models import Model, Models
 
 
 @dataclass
@@ -69,7 +70,7 @@ class TextChunker:
         min_tokens: int = 300,
         max_tokens: int = 500,
         delimiters: Optional[List[str]] = None,
-        model_name: str = "gpt-4o-mini",
+        model: Model = Models.openai_gpt_5_nano,
         preserve_paragraphs: bool = True,
         merge_small_chunks: bool = True,
         split_large_chunks: bool = True,
@@ -81,7 +82,7 @@ class TextChunker:
             min_tokens: Minimum tokens per chunk (default 300)
             max_tokens: Maximum tokens per chunk (default 500)
             delimiters: List of delimiters for splitting (default: [".", "\n"])
-            model_name: Model name for token counting (default: "gpt-4o-mini")
+            model: Model for token counting (default: Models.openai_gpt_5_nano)
             preserve_paragraphs: Whether to preserve paragraph boundaries
             merge_small_chunks: Whether to merge chunks below min_tokens
             split_large_chunks: Whether to split chunks above max_tokens
@@ -101,15 +102,15 @@ class TextChunker:
                 value=max_tokens,
             )
 
-        if not model_name or not model_name.strip():
+        if not model.name or not model.name.strip():
             raise ValidationError(
-                "model_name cannot be empty", field="model_name", value=model_name
+                "model_name cannot be empty", field="model_name", value=model.name
             )
 
         self.min_tokens = min_tokens
         self.max_tokens = max_tokens
         self.delimiters = delimiters or [".", "\n"]
-        self.model_name = model_name.strip()
+        self.model = model
         self.preserve_paragraphs = preserve_paragraphs
         self.merge_small_chunks = merge_small_chunks
         self.split_large_chunks = split_large_chunks
@@ -142,20 +143,11 @@ class TextChunker:
             return 0
 
         try:
-            return int(token_counter(model=self.model_name, text=text))
+            return int(token_counter(model=self.model.litellm_name, text=text))
         except Exception as e:
-            # Fallback to simple word count estimation if token counting fails
-            # This is a rough approximation: ~0.75 tokens per word
-            word_count = len(text.split())
-            estimated_tokens = max(1, int(word_count * 0.75))
-
-            # Log warning in production
-            print(
-                f"Warning: Token counting failed for model {self.model_name}, "
-                f"using word count estimation: {estimated_tokens} tokens. Error: {e}"
-            )
-
-            return estimated_tokens
+            raise RuntimeError(
+                f"Failed to count tokens using model name'{self.model.litellm_name}': {e}"
+            ) from e
 
     def chunk_text(
         self,
