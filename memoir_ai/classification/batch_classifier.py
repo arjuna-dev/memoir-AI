@@ -17,7 +17,7 @@ from pydantic_ai import Agent
 from ..database.models import Category
 from ..exceptions import ClassificationError, LLMError, ValidationError
 from ..llm.agents import create_batch_classification_agent, create_classification_agent
-from ..llm.context_windows import Model, Models
+from ..llm.llm_models import Model, Models
 from ..llm.schemas import (
     BatchClassificationResponse,
     CategorySelection,

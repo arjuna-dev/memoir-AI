@@ -478,7 +478,7 @@ async def classify_all_chunks_with_llm(
     """Execute a hierarchical batch classification call for all chunks using Pydantic AI."""
 
     from ..classification.batch_classifier import BatchCategoryClassifier
-    from ..llm.context_windows import Models
+    from .llm_models import Models
 
     # Create a temporary batch classifier to use its prompt generation method
     temp_classifier = BatchCategoryClassifier(

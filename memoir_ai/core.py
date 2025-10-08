@@ -32,7 +32,7 @@ from .exceptions import (
     MemoirAIError,
     ValidationError,
 )
-from .llm.context_windows import Model, Models
+from .llm.llm_models import Model, Models
 from .query.query_processor import QueryProcessor, process_natural_language_query
 from .query.query_strategy_engine import QueryStrategy
 

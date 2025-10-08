@@ -11,7 +11,7 @@ import os
 import tempfile
 
 from memoir_ai import MemoirAI
-from memoir_ai.llm.context_windows import Models
+from memoir_ai.llm.llm_models import Models
 
 
 async def test_hierarchical_batch_classification():

@@ -16,7 +16,7 @@ from memoir_ai.classification.batch_classifier import (
 )
 from memoir_ai.database.models import Category
 from memoir_ai.exceptions import ClassificationError, ValidationError
-from memoir_ai.llm.context_windows import Model, Models
+from memoir_ai.llm.llm_models import Model, Models
 from memoir_ai.llm.schemas import (
     BatchClassificationResponse,
     CategorySelection,

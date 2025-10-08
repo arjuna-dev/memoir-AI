@@ -18,12 +18,12 @@ from sqlalchemy.orm import Session
 from ..database.models import Category, Chunk
 from ..exceptions import ClassificationError, DatabaseError, LLMError, ValidationError
 from ..llm.agents import create_classification_agent
-from ..llm.context_windows import Model, Models
 from ..llm.interactions import (
     build_chunk_classification_prompt,
     classify_all_chunks_with_llm,
     classify_chunk_with_llm,
 )
+from ..llm.llm_models import Model, Models
 from ..llm.schemas import CategoryTree, HierarchicalBatchClassificationResponse
 from ..text_processing.chunker import TextChunk
 from .batch_classifier import BatchCategoryClassifier, ClassificationResult

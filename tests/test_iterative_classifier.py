@@ -16,7 +16,7 @@ from memoir_ai.classification.iterative_classifier import (
 )
 from memoir_ai.database.models import Category, Chunk
 from memoir_ai.exceptions import ClassificationError, ValidationError
-from memoir_ai.llm.context_windows import Models
+from memoir_ai.llm.llm_models import Models
 from memoir_ai.llm.schemas import CategorySelection
 from memoir_ai.text_processing.chunker import TextChunk
 
