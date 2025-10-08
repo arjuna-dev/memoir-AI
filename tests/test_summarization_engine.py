@@ -13,7 +13,7 @@ def budget_manager() -> None:
     config = BudgetConfig(
         max_token_budget=1000,
         prompt_limiting_strategy=PromptLimitingStrategy.SUMMARIZE,
-        model_name="gpt-4o-mini",
+        model_name="gpt-5-nano",
         summarization_instruction_headroom_tokens=200,
     )
     return BudgetManager(config)
@@ -55,7 +55,7 @@ def test_engine_requires_summarize_strategy(budget_manager) -> None:
     config = BudgetConfig(
         max_token_budget=500,
         prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
-        model_name="gpt-4o-mini",
+        model_name="gpt-5-nano",
     )
     bm = BudgetManager(config)
     from memoir_ai.exceptions import ValidationError

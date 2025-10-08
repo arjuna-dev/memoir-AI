@@ -34,7 +34,7 @@
 chunker = TextChunker(
     min_tokens=300,
     max_tokens=500,
-    model_name="gpt-4o-mini"
+    model_name="gpt-5-nano"
 )
 
 # Count tokens for any text

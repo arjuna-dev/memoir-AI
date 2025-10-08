@@ -173,7 +173,7 @@ class TestMetadataSchemas:
     def test_llm_response_metadata(self) -> None:
         """Test LLMResponseMetadata creation."""
         metadata = LLMResponseMetadata(
-            model="openai:gpt-4o-mini",
+            model="openai:gpt-5-nano",
             timestamp="2024-01-01T10:00:00Z",
             latency_ms=1500,
             tokens_prompt=100,
@@ -181,7 +181,7 @@ class TestMetadataSchemas:
             temperature=0.0,
         )
 
-        assert metadata.model == "openai:gpt-4o-mini"
+        assert metadata.model == "openai:gpt-5-nano"
         assert metadata.timestamp == "2024-01-01T10:00:00Z"
         assert metadata.latency_ms == 1500
         assert metadata.tokens_prompt == 100
@@ -248,14 +248,14 @@ class TestConfigurationSchemas:
     def test_model_configuration(self) -> None:
         """Test ModelConfiguration creation."""
         config = ModelConfiguration(
-            model_name="openai:gpt-4o-mini",
+            model_name="openai:gpt-5-nano",
             temperature=0.7,
             max_tokens=1000,
             timeout=60,
             retry_attempts=5,
         )
 
-        assert config.model_name == "openai:gpt-4o-mini"
+        assert config.model_name == "openai:gpt-5-nano"
         assert config.temperature == 0.7
         assert config.max_tokens == 1000
         assert config.timeout == 60
@@ -348,7 +348,7 @@ class TestUtilityFunctions:
 
     def test_supports_native_output_openai(self) -> None:
         """Test native output support detection for OpenAI."""
-        assert supports_native_output("openai:gpt-4o-mini") is True
+        assert supports_native_output("openai:gpt-5-nano") is True
         assert supports_native_output("openai:gpt-4o") is True
 
     def test_supports_native_output_anthropic(self) -> None:

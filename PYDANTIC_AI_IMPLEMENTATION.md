@@ -139,7 +139,7 @@ The implementation provides simple, intuitive APIs:
 from memoir_ai.llm import create_classification_agent, CategorySelection
 
 # Create agent with native output support
-agent = create_classification_agent("openai:gpt-4o-mini")
+agent = create_classification_agent("openai:gpt-5-nano")
 
 # Schemas automatically validate responses
 selection = CategorySelection(category="AI", ranked_relevance=5)

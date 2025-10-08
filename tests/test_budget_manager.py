@@ -26,13 +26,13 @@ class TestBudgetConfig:
         config = BudgetConfig(
             max_token_budget=2000,  # Larger budget to accommodate default headroom
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
             use_rankings=True,
         )
 
         assert config.max_token_budget == 2000
         assert config.prompt_limiting_strategy == PromptLimitingStrategy.PRUNE
-        assert config.model_name == "gpt-4o-mini"
+        assert config.model_name == "gpt-5-nano"
         assert config.use_rankings is True
 
     def test_budget_config_defaults(self) -> None:
@@ -41,7 +41,7 @@ class TestBudgetConfig:
 
         assert config.max_token_budget == 500
         assert config.prompt_limiting_strategy == PromptLimitingStrategy.PRUNE
-        assert config.model_name == "gpt-4o-mini"
+        assert config.model_name == "gpt-5-nano"
         assert config.use_rankings is True
         assert config.summarization_instruction_headroom_tokens == 1024
         assert config.summary_char_overage_tolerance_percent == 5
@@ -144,7 +144,7 @@ class TestBudgetManager:
         self.config = BudgetConfig(
             max_token_budget=2000,  # Larger budget to accommodate default headroom
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
         )
         self.manager = BudgetManager(config=self.config)
 
@@ -191,7 +191,7 @@ class TestBudgetManager:
         count = manager.count_tokens(text)
 
         assert count == 25
-        mock_token_counter.assert_called_once_with(model="gpt-4o-mini", text=text)
+        mock_token_counter.assert_called_once_with(model="gpt-5-nano", text=text)
 
     @patch("memoir_ai.aggregation.budget_manager.LITELLM_AVAILABLE", True)
     @patch("memoir_ai.aggregation.budget_manager.token_counter")
@@ -416,7 +416,7 @@ class TestBudgetManager:
 
         assert stats["config"]["max_token_budget"] == 1000
         assert stats["config"]["strategy"] == "prune"
-        assert stats["config"]["model_name"] == "gpt-4o-mini"
+        assert stats["config"]["model_name"] == "gpt-5-nano"
 
 
 class TestUtilityFunctions:
@@ -427,7 +427,7 @@ class TestUtilityFunctions:
         manager = create_budget_manager(
             max_token_budget=2000,
             strategy=PromptLimitingStrategy.SUMMARIZE,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
             use_rankings=False,
         )
 
@@ -436,7 +436,7 @@ class TestUtilityFunctions:
         assert (
             manager.config.prompt_limiting_strategy == PromptLimitingStrategy.SUMMARIZE
         )
-        assert manager.config.model_name == "gpt-4o-mini"
+        assert manager.config.model_name == "gpt-5-nano"
         assert manager.config.use_rankings is False
 
     def test_estimate_tokens_fallback(self) -> None:

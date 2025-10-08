@@ -478,7 +478,7 @@ class TestUtilityFunctions:
         aggregator = create_result_aggregator(
             max_token_budget=2000,
             strategy=PromptLimitingStrategy.SUMMARIZE,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
             use_rankings=False,
         )
 
@@ -488,7 +488,7 @@ class TestUtilityFunctions:
             aggregator.budget_manager.config.prompt_limiting_strategy
             == PromptLimitingStrategy.SUMMARIZE
         )
-        assert aggregator.budget_manager.config.model_name == "gpt-4o-mini"
+        assert aggregator.budget_manager.config.model_name == "gpt-5-nano"
         assert aggregator.budget_manager.config.use_rankings is False
 
     def test_create_result_aggregator_defaults(self) -> None:

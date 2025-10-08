@@ -27,7 +27,7 @@ from memoir_ai import MemoirAI
 memoir = MemoirAI(
     database_url="sqlite:///memoir.db",
     llm_provider="openai",
-    model_name="gpt-4o-mini"
+    model_name="gpt-5-nano"
 )
 
 # Ingest text

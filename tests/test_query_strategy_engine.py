@@ -124,11 +124,11 @@ class TestQueryStrategyEngine:
         ):
             engine = QueryStrategyEngine(
                 category_manager=self.mock_category_manager,
-                model_name="openai:gpt-4o-mini",
+                model_name="openai:gpt-5-nano",
             )
 
             assert engine.category_manager == self.mock_category_manager
-            assert engine.model_name == "openai:gpt-4o-mini"
+            assert engine.model_name == "openai:gpt-5-nano"
             assert engine.session == self.mock_category_manager.db_session
 
     @pytest.mark.asyncio

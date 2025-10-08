@@ -66,7 +66,7 @@ def demonstrate_batch_classifier_creation():
     print("1. Direct instantiation:")
     try:
         classifier1 = BatchCategoryClassifier(
-            model_name="openai:gpt-4o-mini",
+            model_name="openai:gpt-5-nano",
             batch_size=3,
             max_retries=2,
             temperature=0.1,
@@ -230,7 +230,7 @@ def demonstrate_metrics_tracking():
                 total_latency_ms=1200,
                 llm_calls=2,
                 timestamp=datetime.now(),
-                model_name="openai:gpt-4o-mini",
+                model_name="openai:gpt-5-nano",
             ),
             BatchClassificationMetrics(
                 batch_id="batch_002",
@@ -241,7 +241,7 @@ def demonstrate_metrics_tracking():
                 total_latency_ms=800,
                 llm_calls=1,
                 timestamp=datetime.now(),
-                model_name="openai:gpt-4o-mini",
+                model_name="openai:gpt-5-nano",
             ),
             BatchClassificationMetrics(
                 batch_id="batch_003",
@@ -252,7 +252,7 @@ def demonstrate_metrics_tracking():
                 total_latency_ms=1500,
                 llm_calls=3,
                 timestamp=datetime.now(),
-                model_name="openai:gpt-4o-mini",
+                model_name="openai:gpt-5-nano",
             ),
         ]
 

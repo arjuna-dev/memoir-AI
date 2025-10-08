@@ -235,7 +235,7 @@ def supports_native_output(model_name: str) -> bool:
     Check if a model supports native structured output.
 
     Args:
-        model_name: The model name (e.g., "openai:gpt-4o-mini", "anthropic:claude-3")
+        model_name: The model name (e.g., "openai:gpt-5-nano", "anthropic:claude-3")
 
     Returns:
         True if the model supports native structured output

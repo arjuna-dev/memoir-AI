@@ -342,7 +342,7 @@ class MemoirAI:
                 self.text_chunker = TextChunker(
                     min_tokens=self.chunk_min_tokens,
                     max_tokens=self.chunk_max_tokens,
-                    model_name=self.model_name,
+                    model=self.model,
                 )
 
                 # Initialize category manager
@@ -1040,7 +1040,7 @@ class MemoirAI:
 # Utility functions for easy initialization
 def create_memoir_ai(
     database_url: str,
-    model_name: str = "gpt-4o-mini",
+    model_name: str = "gpt-5-nano",
     hierarchy_depth: int = 3,
     **kwargs: Any,
 ) -> MemoirAI:

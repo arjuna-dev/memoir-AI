@@ -93,9 +93,9 @@ def demonstrate_budget_manager():
 
     # Create budget manager with different configurations
     configs = [
-        ("Small Budget", BudgetConfig(max_token_budget=200, model_name="gpt-4o-mini")),
-        ("Medium Budget", BudgetConfig(max_token_budget=500, model_name="gpt-4o-mini")),
-        ("Large Budget", BudgetConfig(max_token_budget=2000, model_name="gpt-4o-mini")),
+        ("Small Budget", BudgetConfig(max_token_budget=200, model_name="gpt-5-nano")),
+        ("Medium Budget", BudgetConfig(max_token_budget=500, model_name="gpt-5-nano")),
+        ("Large Budget", BudgetConfig(max_token_budget=2000, model_name="gpt-5-nano")),
     ]
 
     query_text = "What are the main applications of artificial intelligence?"
@@ -293,13 +293,13 @@ def demonstrate_configuration_options():
             max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
             use_rankings=True,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
         ),
         BudgetConfig(
             max_token_budget=40000,
             prompt_limiting_strategy=PromptLimitingStrategy.PRUNE,
             use_rankings=False,  # Deterministic order only
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
         ),
         BudgetConfig(
             max_token_budget=40000,
@@ -307,7 +307,7 @@ def demonstrate_configuration_options():
             summarization_instruction_headroom_tokens=500,
             summary_char_overage_tolerance_percent=10,
             summary_max_retries=2,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
         ),
     ]
 

@@ -17,7 +17,7 @@ async def main():
     # Example 1: Basic chunking
     print("\n1. Basic text chunking...")
 
-    chunker = TextChunker(min_tokens=10, max_tokens=30, model_name="gpt-4o-mini")
+    chunker = TextChunker(min_tokens=10, max_tokens=30, model_name="gpt-5-nano")
 
     sample_text = """
     Artificial intelligence (AI) is intelligence demonstrated by machines, in contrast to the natural intelligence displayed by humans and animals. Leading AI textbooks define the field as the study of "intelligent agents": any device that perceives its environment and takes actions that maximize its chance of successfully achieving its goals.
@@ -138,7 +138,7 @@ async def main():
         "This is a test sentence for comparing token counts across different models."
     )
 
-    models = ["gpt-4o-mini", "gpt-4o-mini", "claude-3-sonnet"]
+    models = ["gpt-5-nano", "gpt-5-nano", "claude-3-sonnet"]
 
     for model in models:
         try:

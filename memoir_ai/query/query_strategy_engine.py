@@ -105,7 +105,7 @@ class QueryStrategyEngine:
     def __init__(
         self,
         category_manager: "CategoryManager",
-        model_name: str = "openai:gpt-4o-mini",
+        model_name: str = "openai:gpt-5-nano",
     ) -> None:
         self.category_manager = category_manager
         self.model_name = model_name

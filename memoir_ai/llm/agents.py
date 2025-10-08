@@ -65,7 +65,7 @@ class AgentFactory:
             default_config: Default configuration for all agents
         """
         self.default_config = default_config or ModelConfiguration(
-            model_name="openai:gpt-4o-mini",
+            model_name="openai:gpt-5-nano",
             temperature=0.0,
             timeout=30,
             retry_attempts=3,

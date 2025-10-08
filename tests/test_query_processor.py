@@ -41,7 +41,7 @@ class TestQueryProcessor:
         self.processor = QueryProcessor(
             category_manager=self.mock_category_manager,
             session=self.mock_session,
-            model_name="openai:gpt-4o-mini",
+            model_name="openai:gpt-5-nano",
             default_chunk_limit=100,
         )
 
@@ -63,7 +63,7 @@ class TestQueryProcessor:
         """Test QueryProcessor initialization."""
         assert self.processor.category_manager == self.mock_category_manager
         assert self.processor.session == self.mock_session
-        assert self.processor.model_name == "openai:gpt-4o-mini"
+        assert self.processor.model_name == "openai:gpt-5-nano"
         assert self.processor.default_chunk_limit == 100
 
         # Check that components are initialized
@@ -265,7 +265,7 @@ class TestQueryProcessor:
         """Test getting query statistics."""
         stats = self.processor.get_query_statistics()
 
-        assert stats["model_name"] == "openai:gpt-4o-mini"
+        assert stats["model_name"] == "openai:gpt-5-nano"
         assert stats["default_chunk_limit"] == 100
         assert stats["hierarchy_depth"] == 3
         assert "available_strategies" in stats
@@ -334,14 +334,14 @@ class TestUtilityFunctions:
         processor = create_query_processor(
             category_manager=mock_category_manager,
             session=mock_session,
-            model_name="openai:gpt-4o-mini",
+            model_name="openai:gpt-5-nano",
             default_chunk_limit=50,
         )
 
         assert isinstance(processor, QueryProcessor)
         assert processor.category_manager == mock_category_manager
         assert processor.session == mock_session
-        assert processor.model_name == "openai:gpt-4o-mini"
+        assert processor.model_name == "openai:gpt-5-nano"
         assert processor.default_chunk_limit == 50
 
     @pytest.mark.asyncio

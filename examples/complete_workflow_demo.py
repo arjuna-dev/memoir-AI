@@ -28,7 +28,7 @@ async def main():
         memoir = MemoirAI(
             database_url=f"sqlite:///{db_path}",
             llm_provider="openai",
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
             hierarchy_depth=3,
             # chunk_min_tokens=15,
             # chunk_max_tokens=40,

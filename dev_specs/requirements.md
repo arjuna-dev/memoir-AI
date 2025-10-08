@@ -201,7 +201,7 @@ from pydantic_ai import Agent, NativeOutput
 from tool_output import Fruit, Vehicle
 
 agent = Agent(
-'openai:gpt-4o-mini',
+'openai:gpt-5-nano',
 output_type=NativeOutput(
 [Fruit, Vehicle],
 name='Fruit_or_vehicle',
@@ -335,19 +335,19 @@ After traversal completes, the system executes SQL retrieval **once per unique l
    3.3 **Compute compression ratio from tokens, apply to characters:** - `required_compression_ratio = (max_token_budget - fixed_prompt_token_count) / chunks_total_token_count`. - If `required_compression_ratio ≥ 1`, summarization not required; proceed with original chunks. - If `required_compression_ratio ≤ 0`, return an error (budget too small for any content). - For each chunk `i`: - `original_char_count_i = len(chunk_i.text_content)` - `target_char_count_i = max(1, floor(original_char_count_i * required_compression_ratio))`
    3.4 **Partition into token-safe parts (respect max_token_budget also for these LLM calls):** - Define `summarization_part_token_cap = max_token_budget - summarization_instruction_headroom_tokens`. - Walk the ordered chunk list and accumulate chunks into **Part 1**, **Part 2**, … such that each part’s **input tokens** (its chunks + per-part instruction preface) `≤ summarization_part_token_cap`. - Each part MUST contain at least one chunk; preserve original order across and within parts.
    3.5 **LLM summarization calls (per part, multiple chunks at once):** - For each Part `k`, the system SHALL send a prompt listing each chunk in this exact structure:
-   `      Chunk <chunk_id> (original_chars=<n>, target_chars=<t>):
-      """
-      <text_content>
-      """
-     ` - Instruction to the LLM:
+   `     Chunk <chunk_id> (original_chars=<n>, target_chars=<t>):
+   """
+   <text_content>
+   """
+ ` - Instruction to the LLM:
    _“For each chunk above, produce a summary of at most its `target_chars` characters. Preserve key facts, entities, dates, numbers, and definitions. Omit repetition and boilerplate. Return only the JSON schema below.”_ - The LLM SHALL return structured output validated by **Pydantic AI**:
    `json
-      {
-        "summaries": [
-          { "chunk_id": <int>, "summary": "<string>" }
-        ]
-      }
-      `
+   {
+     "summaries": [
+       { "chunk_id": <int>, "summary": "<string>" }
+     ]
+   }
+   `
    3.6 **Validation and retries:** - For every summary, verify `len(summary) ≤ target_char_count_i`. - Any over-limit summaries SHALL be retried **only for the offending chunk_ids** with a stricter instruction, up to `summary_max_retries`.
    3.7 **Combined summaries budget check (characters):** - `combined_summaries_char_count = sum(len(summary_i) for all chunks)`. - Ensure `combined_summaries_char_count ≤ (chunks_total_char_count * required_compression_ratio) * (1 + summary_char_overage_tolerance_percent/100)`. - If this check fails after retries, return an error indicating the character budget could not be met.
    3.8 **Final answer call and token check:** - Construct the **final answer prompt**: query + `contextual_helper` (if any) + wrapper text + **ordered concatenation** of all per-chunk summaries. - Verify with `liteLLM.token_counter` that final prompt tokens `≤ max_token_budget`. - If it exceeds the budget, return an error indicating that the required compression could not be achieved within limits.

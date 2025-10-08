@@ -58,7 +58,7 @@ class TestContextualHelperGenerator:
         assert generator.max_tokens == 300
         assert generator.derivation_budget_tokens == 2000
         assert generator.max_chunks_for_derivation == 5
-        assert generator.model_name == "gpt-4o-mini"
+        assert generator.model_name == "gpt-5-nano"
 
     def test_generator_initialization_custom(self) -> None:
         """Test generator initialization with custom parameters."""
@@ -67,14 +67,14 @@ class TestContextualHelperGenerator:
             max_tokens=200,
             derivation_budget_tokens=1000,
             max_chunks_for_derivation=3,
-            model_name="gpt-4o-mini",
+            model_name="gpt-5-nano",
         )
 
         assert generator.auto_source_identification is False
         assert generator.max_tokens == 200
         assert generator.derivation_budget_tokens == 1000
         assert generator.max_chunks_for_derivation == 3
-        assert generator.model_name == "gpt-4o-mini"
+        assert generator.model_name == "gpt-5-nano"
 
     def test_generator_initialization_validation(self) -> None:
         """Test generator initialization validation."""

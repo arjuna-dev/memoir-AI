@@ -729,7 +729,7 @@ class TestUtilityFunctions:
             )
 
             assert isinstance(classifier, BatchCategoryClassifier)
-            assert classifier.model_name == "openai:gpt-4o-mini"
+            assert classifier.model_name == "openai:gpt-5-nano"
             assert classifier.batch_size == 10
             assert classifier.max_retries == 5
 
