@@ -725,7 +725,7 @@ class TestUtilityFunctions:
             ),
         ):
             classifier = create_batch_classifier(
-                model=Models.openai_gpt_4o_mini, batch_size=10, max_retries=5
+                model=Models.openai_gpt_5_nano, batch_size=10, max_retries=5
             )
 
             assert isinstance(classifier, BatchCategoryClassifier)

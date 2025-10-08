@@ -26,7 +26,7 @@ async def test_hierarchical_batch_classification():
         print("Initializing MemoirAI...")
         memoir = MemoirAI(
             database_url=f"sqlite:///{db_path}",
-            model=Models.openai_gpt_4o_mini,
+            model=Models.openai_gpt_5_nano,
             hierarchy_depth=3,
             batch_size=5,
         )

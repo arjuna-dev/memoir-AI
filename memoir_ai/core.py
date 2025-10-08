@@ -106,7 +106,7 @@ class MemoirAI:
         hierarchy_depth: int = 3,
         chunk_min_tokens: int = 150,
         chunk_max_tokens: int = 350,
-        model: Model = Models.openai_gpt_4o_mini,
+        model: Model = Models.openai_gpt_5_nano,
         batch_size: int = 5,
         max_categories_per_level: Union[int, Dict[int, int]] = 128,
         auto_source_identification: bool = True,

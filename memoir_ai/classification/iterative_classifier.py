@@ -80,7 +80,7 @@ class IterativeClassificationWorkflow:
         self,
         db_session: Session,
         category_manager: CategoryManager,
-        model: Model = Models.openai_gpt_4o_mini,
+        model: Model = Models.openai_gpt_5_nano,
         use_batch_processing: bool = True,
         batch_size: int = 5,
         max_retries: int = 3,
@@ -1017,7 +1017,7 @@ class IterativeClassificationWorkflow:
 def create_iterative_classifier(
     db_session: Session,
     category_manager: CategoryManager,
-    model: Model = Models.openai_gpt_4o_mini,
+    model: Model = Models.openai_gpt_5_nano,
     **kwargs: Any,
 ) -> IterativeClassificationWorkflow:
     """
